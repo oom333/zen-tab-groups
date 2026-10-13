@@ -1,0 +1,37 @@
+[
+  {
+    "property": "zen.sitegroups.colored-headers",
+    "label": "Colored headers (from each site's icon)",
+    "type": "checkbox",
+    "defaultValue": true
+  },
+  {
+    "property": "zen.sitegroups.keep-empty-headers",
+    "label": "Always show headers, even with no tabs open",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "zen.sitegroups.chevron-position",
+    "label": "Collapse arrow position",
+    "type": "dropdown",
+    "defaultValue": "right",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Right of the name",
+        "value": "right"
+      },
+      {
+        "label": "Left of the name",
+        "value": "left"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.rest-divider",
+    "label": "Divider between sections and other tabs",
+    "type": "checkbox",
+    "defaultValue": true
+  }
+]

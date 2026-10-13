@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tab Groups settings</title>
+  <link rel="stylesheet" href="settings.css">
+  <script src="settings.js" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <h1>Tab Groups</h1>
+      <p>Keep your favorite sites at the top of the sidebar. Each one gets its own section with a colored header, and new tabs jump straight into place.</p>
+    </header>
+
+    <div class="layout">
+      <div class="column">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Your sections</h2>
+              <p class="muted">Shown at the top of your tabs, in this order. Drag <span class="grip-inline">⠿</span> to reorder. A website can only be in one section.</p>
+            </div>
+          </div>
+
+          <ol id="sections" class="sections"></ol>
+          <p id="empty" class="empty" hidden>No sections yet. Add a website or a collection below.</p>
+
+          <div class="add-row">
+            <button id="add-site" class="button primary" type="button">
+              <span class="plus">+</span> Add a website
+            </button>
+            <button id="add-collection" class="button" type="button">
+              <span class="plus">+</span> New collection
+            </button>
+            <button id="reset" class="button subtle" type="button">Reset to defaults</button>
+          </div>
+
+          <div class="kinds">
+            <div class="kind">
+              <span class="pill">Website</span>
+              <p>One site with its own section, e.g. <b>YouTube</b>. Named and colored from the site's icon automatically.</p>
+            </div>
+            <div class="kind">
+              <span class="pill collection">Collection</span>
+              <p>Several sites under a name and color you choose, e.g. <b>AI</b> for ChatGPT, Claude and Gemini.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Collection ideas</h2>
+          <p class="muted">Starting points you can add with one click and edit afterwards. Sites already in another section are skipped.</p>
+          <div id="ideas" class="ideas"></div>
+        </section>
+
+        <section class="card">
+          <h2>Options</h2>
+          <div class="options">
+            <label class="option">
+              <span class="option-text">
+                <b>Colored headers</b>
+                <span class="muted">Tint each header with its color: picked from the site's icon, or one you choose.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.colored-headers" data-default="true">
+            </label>
+            <label class="option">
+              <span class="option-text">
+                <b>Always show headers</b>
+                <span class="muted">Keep every section's header in the sidebar, even when none of its tabs are open.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.keep-empty-headers" data-default="false">
+            </label>
+            <div class="option">
+              <span class="option-text">
+                <b>Collapse arrow</b>
+                <span class="muted">Where the arrow appears when you hover a header. Click the header to fold its tabs away.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.chevron-position" data-default="right" role="group" aria-label="Collapse arrow position">
+                <button type="button" data-value="left">Left of name</button>
+                <button type="button" data-value="right">Right of name</button>
+              </div>
+            </div>
+            <label class="option">
+              <span class="option-text">
+                <b>Divider below sections</b>
+                <span class="muted">Draw a thin line between your sections and the rest of your tabs.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.rest-divider" data-default="true">
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <aside class="preview-wrap">
+        <div class="preview-label">Preview</div>
+        <div id="preview" class="preview" aria-label="Sidebar preview"></div>
+        <p class="muted small">Changes save instantly and show up in your sidebar right away.</p>
+      </aside>
+    </div>
+  </main>
+
+  <div id="color-popover" class="popover" hidden>
+    <button type="button" class="auto-option" data-color="auto">
+      <span class="swatch auto-swatch"></span> Match site icon
+    </button>
+    <div class="palette"></div>
+    <label class="hue-label">
+      <span class="muted small">Any color</span>
+      <input type="range" id="hue" class="hue" min="0" max="359" step="1" aria-label="Pick any color">
+    </label>
+  </div>
+
+  <dialog id="confirm" class="confirm">
+    <form method="dialog">
+      <p id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button value="cancel" class="button">Cancel</button>
+        <button value="ok" class="button primary" id="confirm-ok">Move it</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

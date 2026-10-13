@@ -1,0 +1,26 @@
+{
+  "id": "zen-tab-groups",
+  "name": "Tab Groups",
+  "description": "Pulls tabs from your chosen sites to the top of the sidebar under colored, collapsible headers.",
+  "homepage": "https://github.com/oom333/zen-tab-groups",
+  "style": "chrome.css",
+  "readme": "README.md",
+  "image": "https://raw.githubusercontent.com/oom333/zen-tab-groups/main/previews/thumb.png",
+  "preferences": "preferences.json",
+  "author": "oom333",
+  "version": "1.0.0",
+  "tags": [
+    "tabs",
+    "sidebar",
+    "productivity"
+  ],
+  "createdAt": "2026-10-13",
+  "updatedAt": "2026-10-13",
+  "scripts": {
+    "tab-groups.uc.js": {
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  }
+}
