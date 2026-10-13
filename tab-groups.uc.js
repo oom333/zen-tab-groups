@@ -7,6 +7,8 @@
 (() => {
   // Matches the entry this mod has in Settings > Zen Mods (its on/off switch).
   const MOD_ID = "37f70d31-5119-4f39-9b5b-0393dbe9fa4f";
+  // This mod's id in Sine (from theme.json).
+  const SINE_MOD_ID = "zen-tab-groups";
   // The settings page sits in a "tab-groups" folder next to this script,
   // wherever the mod manager (Sine, fx-autoconfig, ...) installed it.
   const SCRIPT_URL = Components.stack.filename.split(" -> ").pop().replace(/[?#].*$/, "");
@@ -841,8 +843,8 @@
     document.getElementById("mainPopupSet").append(popup);
   }
 
-  // The settings button on this mod's card in Settings > Zen Mods opens the
-  // full settings page instead of Zen's basic options box.
+  // The settings button on this mod's card (Settings > Zen Mods, or Sine
+  // Mods) opens the full settings page instead of the basic options box.
   function hookModCard(browser) {
     let win;
     try {
@@ -850,17 +852,22 @@
     } catch {
       return;
     }
-    if (!win || win.__zsgHooked || !String(win.location?.href).startsWith("about:preferences")) {
+    if (!win || win.__zsgHooked || !/^about:(preferences|settings)/.test(String(win.location?.href))) {
       return;
     }
     win.__zsgHooked = true;
     win.addEventListener(
       "click",
       e => {
-        const button = e.target.closest?.(".zenThemeMarketplaceItemConfigureButton");
-        const card = button?.closest(".zenThemeMarketplaceItem");
-        const id = card?.querySelector(".zenThemeMarketplaceItemUninstallButton")?.getAttribute("zen-mod-id");
-        if (id === MOD_ID) {
+        const zenButton = e.target.closest?.(".zenThemeMarketplaceItemConfigureButton");
+        const sineButton = e.target.closest?.(".sineItemConfigureButton");
+        const ours =
+          zenButton
+            ?.closest(".zenThemeMarketplaceItem")
+            ?.querySelector(".zenThemeMarketplaceItemUninstallButton")
+            ?.getAttribute("zen-mod-id") === MOD_ID ||
+          sineButton?.closest(".sineItem")?.getAttribute("mod-id") === SINE_MOD_ID;
+        if (ours) {
           e.preventDefault();
           e.stopImmediatePropagation();
           openSettings();
@@ -934,6 +941,9 @@
       Services.prefs.removeObserver(PREF_BRANCH, prefObserver);
       modPrefs.forEach(p => Services.prefs.removeObserver(p, modsObserver));
     });
+
+    // Settings may already be open (e.g. restored from the last session).
+    gBrowser.browsers.forEach(hookModCard);
 
     refreshModEnabled().then(schedule);
   }
