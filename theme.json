@@ -8,14 +8,14 @@
   "image": "https://raw.githubusercontent.com/oom333/zen-tab-groups/main/previews/thumb.png",
   "preferences": "preferences.json",
   "author": "oom333",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "tags": [
     "tabs",
     "sidebar",
     "productivity"
   ],
   "createdAt": "2026-10-13",
-  "updatedAt": "2026-10-13",
+  "updatedAt": "2026-10-14T16:30:59Z",
   "scripts": {
     "tab-groups.uc.js": {
       "include": [
