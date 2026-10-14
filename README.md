@@ -2,6 +2,8 @@
 
 Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit or any site you pick jump into their own section the moment you open them, under a colored header you can collapse.
 
+> **Zen Browser only** (tested on 1.23.2b). It relies on Zen's sidebar and workspaces, so it won't work in Firefox or other Firefox-based browsers.
+
 ![Tab Groups](previews/thumb@2x.png)
 
 ## Features
