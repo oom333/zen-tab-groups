@@ -209,6 +209,8 @@ button, input { font: inherit; color: inherit; }
   line-height: 1;
 }
 .chip button:hover { color: var(--danger); background: var(--sidebar-tab); }
+.chip.more { padding: 3px 8px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.chip.more:hover { color: var(--text); border-color: var(--muted); }
 
 .site-input {
   border: 1px dashed var(--border);
@@ -267,6 +269,24 @@ button, input { font: inherit; color: inherit; }
 .idea-sites span { display: inline-flex; align-items: center; gap: 4px; }
 .idea-sites img { width: 12px; height: 12px; border-radius: 3px; }
 .idea .button { align-self: flex-start; padding: 4px 10px; font-size: 12px; margin-top: auto; }
+/* A long list gets the whole row. */
+.idea.expanded { grid-column: 1 / -1; }
+
+.link-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.link-button:hover { text-decoration: underline; }
+
+/* ---------- backup ---------- */
+
+.backup-note { margin-top: 10px; overflow-wrap: anywhere; }
+.backup-note.error { color: var(--danger); }
 
 /* ---------- options ---------- */
 

@@ -12,7 +12,8 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 - **Colored headers.** Each header takes the main color of the site's logo, or a color you pick.
 - **Collections.** Put several sites under one name, like ChatGPT, Claude and Gemini as "AI".
 - **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all.
-- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas.
+- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: AI, Social, Watch, and Banking (100 US banks, card issuers, money apps and credit unions).
+- **Backups.** Save your sections and options to a file, and restore them later or on another computer.
 
 ![Before and after](previews/before-after.png)
 
@@ -59,6 +60,14 @@ Available on the settings page, and in Sine's settings for the mod:
 - **Always show headers:** keeps a section's header even when none of its tabs are open.
 - **Collapse arrow:** right of the name (default) or left of it.
 - **Divider below sections:** a thin line between your sections and your other tabs.
+
+### Backup
+
+On the settings page, **Save backup…** writes your sections and options to a `.json` file. **Restore from backup…** loads one back, replacing your current sections and options.
+
+### Collection ideas
+
+Add a ready-made collection with one click. If you already have a collection with the same name (say, your own "Banking"), the idea offers to add just the sites you're missing instead.
 
 ## Notes
 

@@ -91,6 +91,17 @@
             </label>
           </div>
         </section>
+
+        <section class="card">
+          <h2>Backup</h2>
+          <p class="muted">Save your sections and options to a file, to keep them safe or move them to another computer. Restoring a backup replaces your current sections and options.</p>
+          <div class="add-row">
+            <button id="backup-save" class="button" type="button">Save backup…</button>
+            <button id="backup-restore" class="button" type="button">Restore from backup…</button>
+          </div>
+          <p id="backup-note" class="muted small backup-note" hidden></p>
+          <input id="backup-file" type="file" accept=".json,application/json" hidden>
+        </section>
       </div>
 
       <aside class="preview-wrap">

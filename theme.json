@@ -8,7 +8,7 @@
   "image": "https://raw.githubusercontent.com/oom333/zen-tab-groups/main/previews/thumb.png",
   "preferences": "preferences.json",
   "author": "oom333",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "tags": [
     "tabs",
     "sidebar",
@@ -19,7 +19,7 @@
   ],
   "ai": "yes",
   "createdAt": "2026-10-13",
-  "updatedAt": "2026-10-14T16:43:17Z",
+  "updatedAt": "2026-10-15T22:56:53Z",
   "scripts": {
     "tab-groups.uc.js": {
       "include": [
