@@ -31,19 +31,23 @@
   const PREF_INDENT = "zen.sitegroups.indent-tabs";
   const PREF_GROUP_LINE = "zen.sitegroups.group-line";
   const PREF_BACKGROUND = "zen.sitegroups.background"; // "none" | "header" | "tabs" | "both"
-  // A section only forms once this many of its tabs are open in a space
-  // ("1" to "5"; a string, so Sine's options box can offer it as a list).
+  // A section only forms once this many of its tabs are open in a space,
+  // unless it sets its own number ("1" to "10"; a string, so Sine's options
+  // box can offer it as a list).
   const PREF_MIN_TABS = "zen.sitegroups.min-tabs";
+  const MAX_MIN_TABS = 10;
 
   // A section is either one website ("site") or several under a name you
   // pick ("collection"). A website can only belong to one section. `spaces`
   // lists the spaces it's used in (Zen workspace ids); empty means all.
+  // `minTabs` is how many of its tabs it takes to form; null means the
+  // "Group from" option.
   // Sites that tend to pile up dozens of tabs.
   const DEFAULT_SECTIONS = [
-    { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [] },
-    { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [] },
-    { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [] },
-    { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [] },
+    { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [], minTabs: null },
+    { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [], minTabs: null },
+    { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [], minTabs: null },
+    { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [], minTabs: null },
   ];
   const defaultSections = () => DEFAULT_SECTIONS.map(s => ({ ...s, sites: [...s.sites], spaces: [] }));
   const SPACE_ID = /^\{[0-9a-f-]{36}\}$/i;
@@ -205,6 +209,7 @@
         sites: (Array.isArray(s.sites) ? s.sites : []).map(normalizeSite).filter(Boolean),
         color: /^#[0-9a-f]{6}$/i.test(s.color ?? "") ? s.color : null,
         spaces: [...new Set((Array.isArray(s.spaces) ? s.spaces : []).filter(id => SPACE_ID.test(id)))],
+        minTabs: Number.isInteger(s.minTabs) && s.minTabs >= 1 && s.minTabs <= MAX_MIN_TABS ? s.minTabs : null,
       }))
       .filter(s => s.sites.length || s.kind === "collection");
   }
@@ -653,14 +658,14 @@
         ungroup(el);
       }
     }
-    // Sections with fewer tabs than the minimum don't form: their tabs stay
+    // Sections with fewer tabs than their minimum don't form: their tabs stay
     // where they are.
     const counts = new Map();
     for (const { si } of grouped) {
       counts.set(si, (counts.get(si) ?? 0) + 1);
     }
     grouped = grouped.filter(({ tab, si }) => {
-      if (counts.get(si) >= opts.minTabs) {
+      if (counts.get(si) >= (sections[si].minTabs ?? opts.minTabs)) {
         return true;
       }
       ungroup(tab);
@@ -811,7 +816,7 @@
         indent: Services.prefs.getBoolPref(PREF_INDENT, false),
         groupLine: Services.prefs.getBoolPref(PREF_GROUP_LINE, false),
         background: choice(PREF_BACKGROUND, "none", ["none", "header", "tabs", "both"]),
-        minTabs: Number(choice(PREF_MIN_TABS, "1", ["1", "2", "3", "4", "5"])),
+        minTabs: Number(choice(PREF_MIN_TABS, "1", Array.from({ length: MAX_MIN_TABS }, (_, i) => String(i + 1)))),
       };
       applyLook(opts);
       knownSpaces = new Set(getSpaces().map(s => s.id));

@@ -136,15 +136,20 @@
             <div class="option">
               <span class="option-text">
                 <b>Group from</b>
-                <span class="muted">How many of a section's tabs must be open in a space before they're grouped. With fewer, they stay where they are.</span>
+                <span class="muted">How many of a section's tabs must be open in a space before they're grouped. With fewer, they stay where they are. Each section can set its own number.</span>
               </span>
-              <div class="segmented" data-pref="zen.sitegroups.min-tabs" data-default="1" role="group" aria-label="Tabs needed to form a section">
-                <button type="button" data-value="1">1 tab</button>
-                <button type="button" data-value="2">2</button>
-                <button type="button" data-value="3">3</button>
-                <button type="button" data-value="4">4</button>
-                <button type="button" data-value="5">5</button>
-              </div>
+              <select class="select" data-pref="zen.sitegroups.min-tabs" data-default="1" aria-label="Tabs needed to form a section">
+                <option value="1">1 tab</option>
+                <option value="2">2 tabs</option>
+                <option value="3">3 tabs</option>
+                <option value="4">4 tabs</option>
+                <option value="5">5 tabs</option>
+                <option value="6">6 tabs</option>
+                <option value="7">7 tabs</option>
+                <option value="8">8 tabs</option>
+                <option value="9">9 tabs</option>
+                <option value="10">10 tabs</option>
+              </select>
             </div>
             <div class="option">
               <span class="option-text">

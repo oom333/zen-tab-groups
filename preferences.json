@@ -98,7 +98,7 @@
   },
   {
     "property": "zen.sitegroups.min-tabs",
-    "label": "Group a section's tabs from",
+    "label": "Group a section's tabs from (sections can set their own)",
     "type": "dropdown",
     "defaultValue": "1",
     "placeholder": false,
@@ -122,6 +122,26 @@
       {
         "label": "5 tabs",
         "value": "5"
+      },
+      {
+        "label": "6 tabs",
+        "value": "6"
+      },
+      {
+        "label": "7 tabs",
+        "value": "7"
+      },
+      {
+        "label": "8 tabs",
+        "value": "8"
+      },
+      {
+        "label": "9 tabs",
+        "value": "9"
+      },
+      {
+        "label": "10 tabs",
+        "value": "10"
       }
     ]
   },

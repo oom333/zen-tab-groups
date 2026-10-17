@@ -19,10 +19,10 @@ const api = chromeWin?.ZenSiteGroups ?? null;
 // it can still be looked at.
 // Same as the defaults in tab-groups.uc.js.
 const DEFAULT_SECTIONS = [
-  { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [] },
-  { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [] },
-  { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [] },
-  { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [] },
+  { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [], minTabs: null },
+  { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [], minTabs: null },
+  { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [], minTabs: null },
+  { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [], minTabs: null },
 ];
 const defaultSections = () => api?.defaultSections?.() ?? structuredClone(DEFAULT_SECTIONS);
 const SAMPLE = new Map([[PREF_SECTIONS, JSON.stringify(DEFAULT_SECTIONS)]]);
@@ -32,6 +32,8 @@ const SAMPLE_SPACES = [
   { id: "{00000000-0000-4000-8000-000000000002}", name: "Work", icon: "💼" },
 ];
 const SPACE_ID = /^\{[0-9a-f-]{36}\}$/i;
+// Most tabs a section can wait for before it forms (as in tab-groups.uc.js).
+const MAX_MIN_TABS = 10;
 
 // Zen's spaces, for sections used in only some of them.
 const spaces = api ? (api.getSpaces?.() ?? []) : inZen ? [] : SAMPLE_SPACES;
@@ -197,6 +199,7 @@ function parseSections(raw) {
       sites: (Array.isArray(s.sites) ? s.sites : []).map(normalizeSite).filter(Boolean),
       color: /^#[0-9a-f]{6}$/i.test(s.color ?? "") ? s.color : null,
       spaces: [...new Set((Array.isArray(s.spaces) ? s.spaces : []).filter(id => SPACE_ID.test(id)))],
+      minTabs: Number.isInteger(s.minTabs) && s.minTabs >= 1 && s.minTabs <= MAX_MIN_TABS ? s.minTabs : null,
     }));
 }
 
@@ -331,7 +334,7 @@ function remove(section) {
 let focusAfterRender = null;
 
 function addWebsite() {
-  const section = { kind: "site", name: "", sites: [], color: null, spaces: [] };
+  const section = { kind: "site", name: "", sites: [], color: null, spaces: [], minTabs: null };
   sections.push(section);
   focusAfterRender = { section, selector: ".site-input" };
   save();
@@ -346,6 +349,7 @@ function addCollection() {
     sites: [],
     color: PALETTE.find(c => !used.has(c)) ?? PALETTE[0],
     spaces: [],
+    minTabs: null,
   };
   sections.push(section);
   focusAfterRender = { section, selector: ".name", select: true };
@@ -362,7 +366,7 @@ const freeSites = idea => idea.sites.filter(site => !sections.some(s => s.sites.
 // collection that already has its name.
 function addIdea(idea) {
   const existing = ideaSection(idea);
-  const section = existing ?? { kind: "collection", name: idea.name, sites: [], color: idea.color, spaces: [] };
+  const section = existing ?? { kind: "collection", name: idea.name, sites: [], color: idea.color, spaces: [], minTabs: null };
   const skipped = [];
   let added = 0;
   for (const site of idea.sites) {
@@ -606,6 +610,33 @@ document.addEventListener("keydown", e => {
 
 /* ---------- rendering ---------- */
 
+const tabsLabel = n => `${n} tab${n === 1 ? "" : "s"}`;
+const defaultMinTabs = () => Number(prefs.getString("zen.sitegroups.min-tabs", "1")) || 1;
+
+// How many of a section's tabs it takes to form: its own number, or the
+// "Group from" option.
+function minTabsControl(section) {
+  return h(
+    "label",
+    { class: "min-tabs", title: "How many of this section's tabs must be open in a space before they're grouped" },
+    "Group from",
+    h(
+      "select",
+      {
+        "aria-label": "Tabs needed to group this section",
+        onchange: e => {
+          section.minTabs = e.target.value ? Number(e.target.value) : null;
+          save();
+        },
+      },
+      h("option", { value: "", selected: section.minTabs === null }, `Default (${tabsLabel(defaultMinTabs())})`),
+      Array.from({ length: MAX_MIN_TABS }, (_, i) => i + 1).map(n =>
+        h("option", { value: String(n), selected: section.minTabs === n }, tabsLabel(n))
+      )
+    )
+  );
+}
+
 let dragged = null;
 // Collections and ideas whose full site list is shown.
 const expandedSections = new WeakSet();
@@ -711,7 +742,8 @@ function renderSection(section, index) {
             folded ? `+${section.sites.length - FOLDED_CHIPS} more` : "Show fewer"
           )
         : null,
-      input
+      input,
+      minTabsControl(section)
     );
   } else {
     sitesRow = h(
@@ -725,7 +757,8 @@ function renderSection(section, index) {
         onchange: e => setWebsite(section, e.target.value),
         onkeydown: e => e.key === "Enter" && e.target.blur(),
       }),
-      section.sites.length > 1 ? h("span", { class: "muted small" }, `also ${section.sites.slice(1).join(", ")}`) : null
+      section.sites.length > 1 ? h("span", { class: "muted small" }, `also ${section.sites.slice(1).join(", ")}`) : null,
+      minTabsControl(section)
     );
   }
 
@@ -944,10 +977,11 @@ function renderSoon() {
 
 /* ---------- options ---------- */
 
-// Every option on the page: switches (true/false) and button groups (one of
-// their buttons' values).
+// Every option on the page: switches (true/false), and button groups and
+// dropdowns (one of their values).
 const optionControls = () => [...document.querySelectorAll("[data-pref]")];
 const isSwitch = el => el.matches("input.switch");
+const isSelect = el => el.matches("select");
 
 function getOption(el) {
   return isSwitch(el)
@@ -961,6 +995,10 @@ function setOption(el, value) {
     if (typeof value === "boolean") {
       prefs.setBool(el.dataset.pref, value);
     }
+  } else if (isSelect(el)) {
+    if ([...el.options].some(o => o.value === value)) {
+      prefs.setString(el.dataset.pref, value);
+    }
   } else if ([...el.querySelectorAll("button")].some(b => b.dataset.value === value)) {
     prefs.setString(el.dataset.pref, value);
   }
@@ -971,6 +1009,8 @@ function showOptions() {
     const value = getOption(el);
     if (isSwitch(el)) {
       el.checked = value;
+    } else if (isSelect(el)) {
+      el.value = value;
     } else {
       el.querySelectorAll("button").forEach(b => b.classList.toggle("selected", b.dataset.value === value));
     }
@@ -1109,6 +1149,14 @@ for (const group of document.querySelectorAll(".segmented")) {
       showOptions();
       renderPreview();
     }
+  });
+}
+
+// The sections' "Default (N tabs)" follows this one.
+for (const select of document.querySelectorAll("select[data-pref]")) {
+  select.addEventListener("change", () => {
+    prefs.setString(select.dataset.pref, select.value);
+    render();
   });
 }
 

@@ -75,7 +75,7 @@ Appearance:
 
 Behavior:
 
-- **Group from:** how many of a section's tabs must be open in a space before they're grouped (1 by default, up to 5). With fewer, they stay where they are.
+- **Group from:** how many of a section's tabs must be open in a space before they're grouped (1 by default, up to 10). With fewer, they stay where they are. Each section can set its own number on the settings page (**Group from** under its websites), say 3 for YouTube and the default for the rest.
 - **Header button:** what the button that appears when you hover a header does: **Clear** closes the section's tabs (default), **Unload** keeps them but unloads their pages, like a folder's button, or **None**.
 - **Always show headers:** keeps a section's header even when none of its tabs are open.
 - **Items in the tab menu:** on by default. Switch it off to keep Tab Groups' items out of the tab right-click menu; right-click a header to open the settings instead.
