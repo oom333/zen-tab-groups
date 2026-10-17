@@ -41,7 +41,7 @@ Out of the box you get sections for **YouTube, Reddit, Wikipedia and X**.
 
 - **Right-click a tab** → *Give this site its own section*, or add it to a collection.
 - **Right-click a header** → move it up or down, rename it, remove it, close all its tabs, or open the settings.
-- **Settings page:** right-click any header or tab → **Tab Groups settings…**
+- **Settings page:** right-click any header or tab → **Tab Groups settings…**, or click the settings button of Tab Groups in Sine.
 
 ![Settings page](previews/settings.png)
 
@@ -60,6 +60,7 @@ Available on the settings page, and in Sine's settings for the mod:
 - **Always show headers:** keeps a section's header even when none of its tabs are open.
 - **Collapse arrow:** right of the name (default) or left of it.
 - **Divider below sections:** a thin line between your sections and your other tabs.
+- **Items in the tab menu:** on by default. Switch it off to keep Tab Groups' items out of the tab right-click menu; right-click a header to open the settings instead.
 
 ### Backup
 

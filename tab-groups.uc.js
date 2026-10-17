@@ -24,6 +24,7 @@
   const PREF_KEEP_EMPTY = "zen.sitegroups.keep-empty-headers";
   const PREF_COLORED = "zen.sitegroups.colored-headers";
   const PREF_CHEVRON = "zen.sitegroups.chevron-position"; // "right" | "left"
+  const PREF_TAB_MENU = "zen.sitegroups.tab-menu-items";
 
   // A section is either one website ("site") or several under a name you
   // pick ("collection"). A website can only belong to one section.
@@ -754,13 +755,23 @@
     let contextHost = null;
     const tabMenu = document.getElementById("tabContextMenu");
     const sep = document.createXULElement("menuseparator");
-    const ownItem = menuItem("", () => contextHost && addSiteAsSection(contextHost));
+    // Labels name the tab's site once the menu opens; these are for anything
+    // that lists the items before that (like Zen Context Menu's settings).
+    const ownItem = menuItem("Give this site its own section", () => contextHost && addSiteAsSection(contextHost));
     const collectionMenu = document.createXULElement("menu");
+    collectionMenu.setAttribute("label", "Add this site to a collection");
     const collectionPopup = document.createXULElement("menupopup");
     collectionMenu.append(collectionPopup);
-    const removeItem = menuItem("", () => contextHost && removeSite(contextHost));
+    const removeItem = menuItem("Remove this site from its section", () => contextHost && removeSite(contextHost));
     const settingsItem = menuItem("Tab Groups settings…", openSettings);
     const all = [sep, ownItem, collectionMenu, removeItem, settingsItem];
+    // Ids let other mods (Zen Context Menu) recognize the items, whose labels
+    // change with the tab's site.
+    sep.id = "context_zsg-separator";
+    ownItem.id = "context_zsg-own-section";
+    collectionMenu.id = "context_zsg-add-to-collection";
+    removeItem.id = "context_zsg-remove-site";
+    settingsItem.id = "context_zsg-settings";
     tabMenu.append(...all);
 
     tabMenu.addEventListener("popupshowing", e => {
@@ -768,7 +779,10 @@
         return;
       }
       const tab = TabContextMenu.contextTab;
-      const host = tab && !tab.pinned && modEnabled ? tabHost(tab) : null;
+      // Switched off in the options: none of the items, settings included
+      // (the header menu and Sine's gear button still open it).
+      const showItems = Services.prefs.getBoolPref(PREF_TAB_MENU, true);
+      const host = tab && !tab.pinned && modEnabled && showItems ? tabHost(tab) : null;
       contextHost = host;
       all.forEach(el => (el.hidden = !host));
       if (!host) {

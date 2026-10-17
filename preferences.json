@@ -33,5 +33,11 @@
     "label": "Divider between sections and other tabs",
     "type": "checkbox",
     "defaultValue": true
+  },
+  {
+    "property": "zen.sitegroups.tab-menu-items",
+    "label": "Tab Groups items in the tab right-click menu",
+    "type": "checkbox",
+    "defaultValue": true
   }
 ]
