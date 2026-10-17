@@ -19,14 +19,24 @@ const api = chromeWin?.ZenSiteGroups ?? null;
 // it can still be looked at.
 // Same as the defaults in tab-groups.uc.js.
 const DEFAULT_SECTIONS = [
-  { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null },
-  { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null },
-  { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null },
-  { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null },
+  { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [], minTabs: null },
+  { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [], minTabs: null },
+  { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [], minTabs: null },
+  { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [], minTabs: null },
 ];
 const defaultSections = () => api?.defaultSections?.() ?? structuredClone(DEFAULT_SECTIONS);
 const SAMPLE = new Map([[PREF_SECTIONS, JSON.stringify(DEFAULT_SECTIONS)]]);
 const SAMPLE_COLORS = { "youtube.com": "#ff0033", "reddit.com": "#ff4500" };
+const SAMPLE_SPACES = [
+  { id: "{00000000-0000-4000-8000-000000000001}", name: "Personal", icon: "🏠" },
+  { id: "{00000000-0000-4000-8000-000000000002}", name: "Work", icon: "💼" },
+];
+const SPACE_ID = /^\{[0-9a-f-]{36}\}$/i;
+// Most tabs a section can wait for before it forms (as in tab-groups.uc.js).
+const MAX_MIN_TABS = 10;
+
+// Zen's spaces, for sections used in only some of them.
+const spaces = api ? (api.getSpaces?.() ?? []) : inZen ? [] : SAMPLE_SPACES;
 
 const prefs = inZen
   ? {
@@ -55,11 +65,47 @@ const PALETTE = [
   "#6f7dff", "#a86bff", "#ff6bcb", "#ff8fa3", "#94a3b8", "#c9a27e",
 ];
 
+// US banks, card issuers, online banks and credit unions. Best known first:
+// idea cards only list the first few until expanded.
+const BANKS = [
+  // National banks (TD Bank's site moved to td.com)
+  "chase.com", "bankofamerica.com", "wellsfargo.com", "citi.com", "capitalone.com", "usbank.com",
+  "pnc.com", "truist.com", "td.com", "tdbank.com", "citizensbank.com", "53.com", "key.com",
+  "huntington.com", "regions.com", "mtb.com", "bmo.com", "santanderbank.com", "firstcitizens.com",
+  "usaa.com", "navyfederal.org",
+  // Credit cards (Bread Financial store cards are managed on comenity.net)
+  "americanexpress.com", "discover.com", "synchrony.com", "barclaysus.com", "barclaycardus.com",
+  "breadfinancial.com", "comenity.net", "card.apple.com",
+  // Online banks and money apps (LendingClub is moving to happen.com)
+  "sofi.com", "ally.com", "marcus.com", "chime.com", "venmo.com", "varomoney.com", "current.com",
+  "axosbank.com", "cit.com", "lendingclub.com", "happen.com", "upgrade.com", "dave.com",
+  "moneylion.com", "mercury.com", "bluevine.com", "liveoak.bank", "ufbdirect.com", "baskbank.com",
+  // Regional banks (Comerica is now part of Fifth Third, 53.com)
+  "comerica.com", "zionsbank.com", "firsthorizon.com", "eastwestbank.com", "cnb.com", "frostbank.com",
+  "ozk.com", "synovus.com", "websterbank.com", "valley.com", "cadencebank.com", "associatedbank.com",
+  "flagstar.com", "umb.com", "wintrust.com", "popular.com", "oldnational.com", "pnfp.com",
+  "prosperitybank.com", "columbiabank.com", "umpquabank.com", "hancockwhitney.com",
+  "bankofoklahoma.com", "commercebank.com", "fnb-online.com", "simmonsbank.com", "arvest.com",
+  "firstinterstatebank.com", "fultonbank.com", "atlanticunionbank.com", "trustmark.com",
+  "bankunited.com", "amerisbank.com", "ucbi.com", "boh.com", "fhb.com",
+  // Credit unions
+  "penfed.org", "becu.org", "alliantcreditunion.org", "schoolsfirstfcu.org", "golden1.com",
+  "ncsecu.org", "firsttechfed.com", "dcu.org", "rbfcu.org", "americafirst.com",
+  "suncoastcreditunion.com", "mountainamerica.com", "bethpagefcu.com", "vystarcu.org", "psecu.com",
+  "lmcu.org",
+];
+
 const IDEAS = [
   { name: "AI", color: "#a86bff", sites: ["chatgpt.com", "claude.ai", "gemini.google.com", "perplexity.ai"] },
   { name: "Social", color: "#4da3ff", sites: ["x.com", "instagram.com", "facebook.com", "tiktok.com"] },
   { name: "Watch", color: "#ff6bcb", sites: ["netflix.com", "twitch.tv", "disneyplus.com", "primevideo.com"] },
+  { name: "Banking", color: "#5ad17a", sites: BANKS },
 ];
+
+// Idea cards list this many sites until expanded.
+const IDEA_PREVIEW = 6;
+// Collections with more sites than this show only the first few chips.
+const FOLDED_CHIPS = 10;
 
 // Icons shipped with the mod (icons/<site>.png), so ideas always show them.
 const BUNDLED_ICONS = new Set(IDEAS.flatMap(idea => idea.sites));
@@ -143,6 +189,20 @@ const displayName = s => s.name.trim() || defaultName(s.sites[0]) || (s.kind ===
 
 /* ---------- state ---------- */
 
+// Cleans up a saved list of sections (from the pref or a backup file).
+function parseSections(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .filter(s => s && typeof s === "object")
+    .map(s => ({
+      kind: s.kind === "collection" ? "collection" : "site",
+      name: String(s.name ?? ""),
+      sites: (Array.isArray(s.sites) ? s.sites : []).map(normalizeSite).filter(Boolean),
+      color: /^#[0-9a-f]{6}$/i.test(s.color ?? "") ? s.color : null,
+      spaces: [...new Set((Array.isArray(s.spaces) ? s.spaces : []).filter(id => SPACE_ID.test(id)))],
+      minTabs: Number.isInteger(s.minTabs) && s.minTabs >= 1 && s.minTabs <= MAX_MIN_TABS ? s.minTabs : null,
+    }));
+}
+
 function load() {
   let raw;
   try {
@@ -150,12 +210,7 @@ function load() {
   } catch {
     raw = [];
   }
-  return (Array.isArray(raw) ? raw : []).map(s => ({
-    kind: s.kind === "collection" ? "collection" : "site",
-    name: String(s.name ?? ""),
-    sites: (Array.isArray(s.sites) ? s.sites : []).map(normalizeSite).filter(Boolean),
-    color: /^#[0-9a-f]{6}$/i.test(s.color ?? "") ? s.color : null,
-  }));
+  return parseSections(raw);
 }
 
 let sections = load();
@@ -279,36 +334,61 @@ function remove(section) {
 let focusAfterRender = null;
 
 function addWebsite() {
-  const section = { kind: "site", name: "", sites: [], color: null };
+  const section = { kind: "site", name: "", sites: [], color: null, spaces: [], minTabs: null };
   sections.push(section);
   focusAfterRender = { section, selector: ".site-input" };
   save();
   render();
 }
 
-function addCollection(idea) {
+function addCollection() {
   const used = new Set(sections.map(s => s.color));
   const section = {
     kind: "collection",
-    name: idea?.name ?? "New collection",
+    name: "New collection",
     sites: [],
-    color: idea?.color ?? PALETTE.find(c => !used.has(c)) ?? PALETTE[0],
+    color: PALETTE.find(c => !used.has(c)) ?? PALETTE[0],
+    spaces: [],
+    minTabs: null,
   };
+  sections.push(section);
+  focusAfterRender = { section, selector: ".name", select: true };
+  save();
+  render();
+}
+
+// The section an idea was added as, or one you made with the same name.
+const ideaSection = idea => sections.find(s => displayName(s).toLowerCase() === idea.name.toLowerCase());
+// An idea's sites that no section has yet.
+const freeSites = idea => idea.sites.filter(site => !sections.some(s => s.sites.includes(site)));
+
+// Adds an idea as a new collection, or adds its missing sites to the
+// collection that already has its name.
+function addIdea(idea) {
+  const existing = ideaSection(idea);
+  const section = existing ?? { kind: "collection", name: idea.name, sites: [], color: idea.color, spaces: [], minTabs: null };
   const skipped = [];
-  for (const site of idea?.sites ?? []) {
+  let added = 0;
+  for (const site of idea.sites) {
     const owner = sections.find(s => s.sites.includes(site));
-    if (owner) {
-      skipped.push(`${site} (in ${displayName(owner)})`);
-    } else {
+    if (!owner) {
       section.sites.push(site);
+      added++;
+    } else if (owner !== section) {
+      skipped.push(`${site} (in ${displayName(owner)})`);
     }
   }
-  sections.push(section);
-  if (idea) {
-    ideaNotes.set(idea.name, skipped.length ? `Added. Skipped ${skipped.join(", ")}.` : "Added to your sections.");
-  } else {
-    focusAfterRender = { section, selector: ".name", select: true };
+  if (!existing) {
+    sections.push(section);
   }
+  expandedSections.delete(section);
+  const note = existing
+    ? `Added ${added} site${added === 1 ? "" : "s"} to “${displayName(section)}”.`
+    : skipped.length
+      ? "Added."
+      : "Added to your sections.";
+  const skippedNote = skipped.length > 3 ? `${skipped.length} sites already in other sections` : skipped.join(", ");
+  ideaNotes.set(idea.name, skipped.length ? `${note} Skipped ${skippedNote}.` : note);
   save();
   render();
 }
@@ -369,6 +449,7 @@ function markSelected() {
 
 function openPopover(section, button) {
   closePopover();
+  closeSpacesPopover();
   popoverSection = section;
   button.parentElement.append(popover);
   popover.classList.remove("above");
@@ -422,20 +503,144 @@ hueSlider.addEventListener("input", () => {
   });
 });
 
+/* ---------- spaces ---------- */
+
+// A popover like the color picker's, for the spaces a section is used in.
+const spacesPopover = document.getElementById("spaces-popover");
+let spacesSection = null;
+
+// The spaces a section shows in: those on its list that exist, or all of
+// them if none do (as in tab-groups.uc.js).
+function sectionSpaces(section) {
+  const listed = section.spaces.filter(id => spaces.some(s => s.id === id));
+  return listed.length ? listed : spaces.map(s => s.id);
+}
+
+// Space icons are emoji, or an image from Zen's icon set; spaces can have none.
+const spaceIcon = space =>
+  !space.icon
+    ? null
+    : /^(chrome|resource|data):/.test(space.icon)
+      ? h("img", { class: "space-icon", alt: "", src: space.icon })
+      : h("span", { class: "space-icon" }, space.icon);
+
+function spacesButtonContent(section) {
+  const shown = spaces.filter(s => section.spaces.includes(s.id));
+  if (!shown.length) {
+    return ["All spaces"];
+  }
+  return shown.length === 1 ? [spaceIcon(shown[0]), shown[0].name].filter(Boolean) : [`${shown.length} spaces`];
+}
+
+function renderSpacesPopover() {
+  const section = spacesSection;
+  const selected = new Set(sectionSpaces(section));
+  const everywhere = selected.size === spaces.length;
+  spacesPopover.replaceChildren(
+    h(
+      "button",
+      { type: "button", class: `auto-option${everywhere ? " selected" : ""}`, onclick: () => setSpaces(section, []) },
+      "All spaces"
+    ),
+    ...spaces.map(space =>
+      h(
+        "label",
+        { class: "space-option" },
+        h("input", {
+          type: "checkbox",
+          checked: selected.has(space.id),
+          onchange: e => toggleSpace(section, space.id, e.target.checked),
+        }),
+        spaceIcon(space),
+        h("span", {}, space.name)
+      )
+    )
+  );
+}
+
+function setSpaces(section, list) {
+  section.spaces = list;
+  save();
+  rowFor(section)?.querySelector(".spaces-button")?.replaceChildren(...spacesButtonContent(section));
+  renderSpacesPopover();
+}
+
+function toggleSpace(section, id, on) {
+  const chosen = new Set(sectionSpaces(section));
+  on ? chosen.add(id) : chosen.delete(id);
+  if (!chosen.size) {
+    renderSpacesPopover(); // a section needs at least one space
+    return;
+  }
+  setSpaces(section, chosen.size === spaces.length ? [] : spaces.map(s => s.id).filter(s => chosen.has(s)));
+}
+
+function openSpacesPopover(section, button) {
+  closePopover();
+  spacesSection = section;
+  button.parentElement.append(spacesPopover);
+  renderSpacesPopover();
+  spacesPopover.classList.remove("above");
+  spacesPopover.hidden = false;
+  if (spacesPopover.getBoundingClientRect().bottom > window.innerHeight - 8) {
+    spacesPopover.classList.add("above");
+  }
+}
+
+function closeSpacesPopover() {
+  spacesPopover.hidden = true;
+  spacesSection = null;
+  document.body.append(spacesPopover);
+}
+
 document.addEventListener("mousedown", e => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest(".color-button")) {
     closePopover();
+  }
+  if (!spacesPopover.hidden && !spacesPopover.contains(e.target) && !e.target.closest(".spaces-button")) {
+    closeSpacesPopover();
   }
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     closePopover();
+    closeSpacesPopover();
   }
 });
 
 /* ---------- rendering ---------- */
 
+const tabsLabel = n => `${n} tab${n === 1 ? "" : "s"}`;
+const defaultMinTabs = () => Number(prefs.getString("zen.sitegroups.min-tabs", "1")) || 1;
+
+// How many of a section's tabs it takes to form: its own number, or the
+// "Group from" option.
+function minTabsControl(section) {
+  return h(
+    "label",
+    { class: "min-tabs", title: "How many of this section's tabs must be open in a space before they're grouped" },
+    "Group from",
+    h(
+      "select",
+      {
+        "aria-label": "Tabs needed to group this section",
+        onchange: e => {
+          section.minTabs = e.target.value ? Number(e.target.value) : null;
+          save();
+        },
+      },
+      h("option", { value: "", selected: section.minTabs === null }, `Default (${tabsLabel(defaultMinTabs())})`),
+      Array.from({ length: MAX_MIN_TABS }, (_, i) => i + 1).map(n =>
+        h("option", { value: String(n), selected: section.minTabs === n }, tabsLabel(n))
+      )
+    )
+  );
+}
+
 let dragged = null;
+// Collections and ideas whose full site list is shown.
+const expandedSections = new WeakSet();
+const expandedIdeas = new Set();
 
 function renderSection(section, index) {
   const color = coloredHeaders() ? sectionColor(section) : null;
@@ -464,6 +669,21 @@ function renderSection(section, index) {
     ...colorButtonContent(section)
   );
 
+  // Only with several spaces, or for a section already limited to some.
+  const spacesButton =
+    spaces.length > 1 || section.spaces.length
+      ? h(
+          "button",
+          {
+            type: "button",
+            class: "spaces-button",
+            title: "Spaces this section is used in",
+            onclick: e => (spacesSection === section ? closeSpacesPopover() : openSpacesPopover(section, e.currentTarget)),
+          },
+          ...spacesButtonContent(section)
+        )
+      : null;
+
   let sitesRow;
   if (isCollection) {
     const input = h("input", {
@@ -473,16 +693,25 @@ function renderSection(section, index) {
       // Fires on Enter as well as on leaving the box.
       onchange: async e => {
         const enter = document.activeElement === e.target;
-        if (e.target.value.trim() && (await addToCollection(section, e.target.value)) && enter) {
+        if (!e.target.value.trim()) {
+          return;
+        }
+        // Unfold, so the new site doesn't vanish behind "+N more".
+        expandedSections.add(section);
+        if ((await addToCollection(section, e.target.value)) && enter) {
           focusAfterRender = { section, selector: ".site-input" };
           render();
         }
       },
     });
+    // Big collections (like Banking) show a few chips until unfolded, but
+    // never fold away just one or two.
+    const foldable = section.sites.length > FOLDED_CHIPS + 2;
+    const folded = foldable && !expandedSections.has(section);
     sitesRow = h(
       "div",
       { class: "sites" },
-      section.sites.map(site =>
+      (folded ? section.sites.slice(0, FOLDED_CHIPS) : section.sites).map(site =>
         h(
           "span",
           { class: "chip" },
@@ -499,7 +728,22 @@ function renderSection(section, index) {
           }, "×")
         )
       ),
-      input
+      foldable
+        ? h(
+            "button",
+            {
+              type: "button",
+              class: "chip more",
+              onclick: () => {
+                folded ? expandedSections.add(section) : expandedSections.delete(section);
+                render();
+              },
+            },
+            folded ? `+${section.sites.length - FOLDED_CHIPS} more` : "Show fewer"
+          )
+        : null,
+      input,
+      minTabsControl(section)
     );
   } else {
     sitesRow = h(
@@ -513,7 +757,8 @@ function renderSection(section, index) {
         onchange: e => setWebsite(section, e.target.value),
         onkeydown: e => e.key === "Enter" && e.target.blur(),
       }),
-      section.sites.length > 1 ? h("span", { class: "muted small" }, `also ${section.sites.slice(1).join(", ")}`) : null
+      section.sites.length > 1 ? h("span", { class: "muted small" }, `also ${section.sites.slice(1).join(", ")}`) : null,
+      minTabsControl(section)
     );
   }
 
@@ -573,6 +818,7 @@ function renderSection(section, index) {
     h(
       "div",
       { class: "actions" },
+      spacesButton,
       colorButton,
       h("button", { type: "button", class: "icon-button", title: "Move up", disabled: index === 0, onclick: () => move(section, -1) }, "↑"),
       h("button", { type: "button", class: "icon-button", title: "Move down", disabled: index === sections.length - 1, onclick: () => move(section, 1) }, "↓"),
@@ -591,20 +837,46 @@ function renderList() {
 }
 
 function renderIdeas() {
-  const names = new Set(sections.map(s => displayName(s).toLowerCase()));
   document.getElementById("ideas").replaceChildren(
     ...IDEAS.map(idea => {
-      const added = names.has(idea.name.toLowerCase());
+      // Already there: offer to fill in what's missing, if it's a collection.
+      const existing = ideaSection(idea);
+      const missing = existing?.kind === "collection" ? freeSites(idea).length : 0;
+      const label = !existing
+        ? "+ Add collection"
+        : missing
+          ? `+ Add ${missing} more site${missing === 1 ? "" : "s"}`
+          : "Added";
+      const expanded = expandedIdeas.has(idea.name);
+      const hidden = idea.sites.length - IDEA_PREVIEW;
       return h(
         "div",
-        { class: "idea", style: { "--idea-color": idea.color } },
+        { class: `idea${expanded ? " expanded" : ""}`, style: { "--idea-color": idea.color } },
         h("div", { class: "idea-head" }, idea.name, h("span", { class: "line" })),
-        h("div", { class: "idea-sites" }, idea.sites.map(site => h("span", {}, favicon(site), site))),
+        h(
+          "div",
+          { class: "idea-sites" },
+          (expanded ? idea.sites : idea.sites.slice(0, IDEA_PREVIEW)).map(site => h("span", {}, favicon(site), site)),
+          hidden > 0
+            ? h(
+                "button",
+                {
+                  type: "button",
+                  class: "link-button",
+                  onclick: () => {
+                    expanded ? expandedIdeas.delete(idea.name) : expandedIdeas.add(idea.name);
+                    renderIdeas();
+                  },
+                },
+                expanded ? "Show fewer" : `+${hidden} more`
+              )
+            : null
+        ),
         ideaNotes.has(idea.name) ? h("p", { class: "muted small" }, ideaNotes.get(idea.name)) : null,
         h(
           "button",
-          { type: "button", class: "button", disabled: added, onclick: () => addCollection(idea) },
-          added ? "Added" : "+ Add collection"
+          { type: "button", class: "button", disabled: label === "Added", onclick: () => addIdea(idea) },
+          label
         )
       );
     })
@@ -615,7 +887,16 @@ function renderPreview() {
   const colored = coloredHeaders();
   const keepEmpty = prefs.getBool("zen.sitegroups.keep-empty-headers", false);
   const divider = prefs.getBool("zen.sitegroups.rest-divider", true);
-  const arrowRight = prefs.getString("zen.sitegroups.chevron-position", "right") !== "left";
+  const arrow = prefs.getString("zen.sitegroups.chevron-position", "right");
+  const tabCount = prefs.getString("zen.sitegroups.tab-count", "folded");
+  const button = prefs.getString("zen.sitegroups.header-button", "clear");
+  const background = prefs.getString("zen.sitegroups.background", "none");
+  const preview = document.getElementById("preview");
+  preview.classList.toggle("indent", prefs.getBool("zen.sitegroups.indent-tabs", false));
+  preview.classList.toggle("group-line", prefs.getBool("zen.sitegroups.group-line", false));
+  preview.classList.toggle("no-header-line", !prefs.getBool("zen.sitegroups.header-line", true));
+  preview.classList.toggle("bg-header", background === "header" || background === "both");
+  preview.classList.toggle("bg-tabs", background === "tabs" || background === "both");
   const rows = [h("div", { class: "p-new" }, "+  New Tab")];
   let first = true;
   for (const section of sections) {
@@ -623,23 +904,35 @@ function renderPreview() {
       continue;
     }
     const color = colored ? sectionColor(section) : null;
+    const sites = section.sites.slice(0, section.kind === "site" ? 1 : 3);
     rows.push(
       h(
         "div",
         {
-          class: `p-header${color ? " colored" : ""}${section.sites.length ? "" : " empty"}${arrowRight ? " arrow-right" : ""}`,
+          class: `p-header${color ? " colored" : ""}${sites.length ? "" : " empty"}${arrow === "right" ? " arrow-right" : ""}${arrow === "hidden" ? " arrow-hidden" : ""}`,
           style: { "--c": color },
           title: "Hover to see the collapse arrow",
         },
         h("span", { class: "chevron" }),
         h("span", { class: "label" }, displayName(section)),
-        h("span", { class: "line" })
+        tabCount === "always" && sites.length ? h("span", { class: "count" }, String(sites.length)) : null,
+        h("span", { class: "line" }),
+        button !== "none" && sites.length ? h("span", { class: "action" }, button === "unload" ? "Unload" : "Clear") : null
       )
     );
-    for (const site of section.sites.slice(0, section.kind === "site" ? 1 : 3)) {
-      const title = section.kind === "site" ? displayName(section) : defaultName(site);
-      rows.push(h("div", { class: `p-tab${first ? " active" : ""}` }, favicon(site), h("span", {}, title)));
-      first = false;
+    if (sites.length) {
+      rows.push(
+        h(
+          "div",
+          { class: "p-group", style: { "--c": color } },
+          sites.map(site => {
+            const title = section.kind === "site" ? displayName(section) : defaultName(site);
+            const tab = h("div", { class: `p-tab${first ? " active" : ""}` }, favicon(site), h("span", {}, title));
+            first = false;
+            return tab;
+          })
+        )
+      );
     }
   }
   if (rows.length > 1 && divider) {
@@ -649,11 +942,12 @@ function renderPreview() {
     h("div", { class: "p-tab other" }, h("span", { class: "p-dot" }), h("span", {}, "Other tab")),
     h("div", { class: "p-tab other" }, h("span", { class: "p-dot" }), h("span", {}, "Another tab"))
   );
-  document.getElementById("preview").replaceChildren(...rows);
+  preview.replaceChildren(...rows);
 }
 
 function render() {
   closePopover();
+  closeSpacesPopover();
   renderList();
   renderIdeas();
   renderPreview();
@@ -681,6 +975,150 @@ function renderSoon() {
   });
 }
 
+/* ---------- options ---------- */
+
+// Every option on the page: switches (true/false), and button groups and
+// dropdowns (one of their values).
+const optionControls = () => [...document.querySelectorAll("[data-pref]")];
+const isSwitch = el => el.matches("input.switch");
+const isSelect = el => el.matches("select");
+
+function getOption(el) {
+  return isSwitch(el)
+    ? prefs.getBool(el.dataset.pref, el.dataset.default === "true")
+    : prefs.getString(el.dataset.pref, el.dataset.default);
+}
+
+// Ignores values the control can't show (e.g. from a hand-edited backup).
+function setOption(el, value) {
+  if (isSwitch(el)) {
+    if (typeof value === "boolean") {
+      prefs.setBool(el.dataset.pref, value);
+    }
+  } else if (isSelect(el)) {
+    if ([...el.options].some(o => o.value === value)) {
+      prefs.setString(el.dataset.pref, value);
+    }
+  } else if ([...el.querySelectorAll("button")].some(b => b.dataset.value === value)) {
+    prefs.setString(el.dataset.pref, value);
+  }
+}
+
+function showOptions() {
+  for (const el of optionControls()) {
+    const value = getOption(el);
+    if (isSwitch(el)) {
+      el.checked = value;
+    } else if (isSelect(el)) {
+      el.value = value;
+    } else {
+      el.querySelectorAll("button").forEach(b => b.classList.toggle("selected", b.dataset.value === value));
+    }
+  }
+}
+
+/* ---------- backup ---------- */
+
+const BACKUP_APP = "zen-tab-groups";
+const backupNote = document.getElementById("backup-note");
+const backupFile = document.getElementById("backup-file");
+
+function noteBackup(text, error = false) {
+  backupNote.textContent = text;
+  backupNote.classList.toggle("error", error);
+  backupNote.hidden = false;
+}
+
+// Zen's Save / Open dialog. Resolves to the chosen path, or null if
+// cancelled. Throws outside Zen, where the page falls back to web downloads
+// and its own file input.
+function pickFile(mode, title, defaultName) {
+  const picker = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+  picker.init(window.browsingContext, title, mode);
+  picker.appendFilter("Tab Groups backup", "*.json");
+  picker.appendFilters(Ci.nsIFilePicker.filterAll);
+  if (defaultName) {
+    picker.defaultString = defaultName;
+    picker.defaultExtension = "json";
+  }
+  return new Promise(resolve =>
+    picker.open(result => resolve(result === Ci.nsIFilePicker.returnCancel ? null : picker.file.path))
+  );
+}
+
+async function saveBackup() {
+  const options = Object.fromEntries(optionControls().map(el => [el.dataset.pref, getOption(el)]));
+  const text = JSON.stringify({ app: BACKUP_APP, format: 1, saved: new Date().toISOString(), sections, options }, null, 2);
+  const now = new Date();
+  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map(n => String(n).padStart(2, "0")).join("-");
+  const fileName = `tab-groups-backup-${day}.json`;
+  let path;
+  try {
+    path = await pickFile(Ci.nsIFilePicker.modeSave, "Save Tab Groups backup", fileName);
+  } catch {
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    h("a", { href: url, download: fileName }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    noteBackup(`Downloaded ${fileName}.`);
+    return;
+  }
+  if (!path) {
+    return;
+  }
+  try {
+    await IOUtils.writeUTF8(path, text);
+    noteBackup(`Saved to ${path}.`);
+  } catch (ex) {
+    noteBackup(`Couldn't save the backup: ${ex.message}`, true);
+  }
+}
+
+async function openBackup() {
+  let path;
+  try {
+    path = await pickFile(Ci.nsIFilePicker.modeOpen, "Restore Tab Groups backup");
+  } catch {
+    backupFile.click();
+    return;
+  }
+  if (!path) {
+    return;
+  }
+  const fileName = PathUtils.filename(path);
+  try {
+    await restoreBackup(await IOUtils.readUTF8(path), fileName);
+  } catch (ex) {
+    noteBackup(`Couldn't read ${fileName}: ${ex.message}`, true);
+  }
+}
+
+async function restoreBackup(text, fileName) {
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {}
+  if (data?.app !== BACKUP_APP || !Array.isArray(data.sections)) {
+    noteBackup(`${fileName} isn't a Tab Groups backup.`, true);
+    return;
+  }
+  const restored = parseSections(data.sections);
+  const count = `${restored.length} section${restored.length === 1 ? "" : "s"}`;
+  if (!(await ask(`Replace your sections and options with the ones in ${fileName} (${count})?`, "Restore"))) {
+    return;
+  }
+  sections = restored;
+  save();
+  const options = data.options ?? {};
+  for (const el of optionControls()) {
+    if (Object.hasOwn(options, el.dataset.pref)) {
+      setOption(el, options[el.dataset.pref]);
+    }
+  }
+  showOptions();
+  render();
+  noteBackup(`Restored ${count} and your options from ${fileName}.`);
+}
+
 /* ---------- wiring ---------- */
 
 document.getElementById("add-site").addEventListener("click", addWebsite);
@@ -691,29 +1129,45 @@ document.getElementById("reset").addEventListener("click", async () => {
     render();
   }
 });
-document.getElementById("add-collection").addEventListener("click", () => addCollection(null));
+document.getElementById("add-collection").addEventListener("click", addCollection);
+
+document.getElementById("backup-save").addEventListener("click", saveBackup);
+document.getElementById("backup-restore").addEventListener("click", openBackup);
+backupFile.addEventListener("change", async () => {
+  const file = backupFile.files[0];
+  backupFile.value = "";
+  if (file) {
+    await restoreBackup(await file.text(), file.name);
+  }
+});
 
 for (const group of document.querySelectorAll(".segmented")) {
-  const buttons = [...group.querySelectorAll("button")];
-  const select = value => buttons.forEach(b => b.classList.toggle("selected", b.dataset.value === value));
-  select(prefs.getString(group.dataset.pref, group.dataset.default));
   group.addEventListener("click", e => {
     const button = e.target.closest("button");
     if (button) {
       prefs.setString(group.dataset.pref, button.dataset.value);
-      select(button.dataset.value);
+      showOptions();
       renderPreview();
     }
   });
 }
 
+// The sections' "Default (N tabs)" follows this one.
+for (const select of document.querySelectorAll("select[data-pref]")) {
+  select.addEventListener("change", () => {
+    prefs.setString(select.dataset.pref, select.value);
+    render();
+  });
+}
+
 for (const toggle of document.querySelectorAll("input.switch")) {
-  toggle.checked = prefs.getBool(toggle.dataset.pref, toggle.dataset.default === "true");
   toggle.addEventListener("change", () => {
     prefs.setBool(toggle.dataset.pref, toggle.checked);
     render();
   });
 }
+
+showOptions();
 
 // Changes made elsewhere (right-click menus in the sidebar).
 prefs.observe(name => {

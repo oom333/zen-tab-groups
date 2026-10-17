@@ -23,18 +23,34 @@
   const PREF_REST_DIVIDER = "zen.sitegroups.rest-divider";
   const PREF_KEEP_EMPTY = "zen.sitegroups.keep-empty-headers";
   const PREF_COLORED = "zen.sitegroups.colored-headers";
-  const PREF_CHEVRON = "zen.sitegroups.chevron-position"; // "right" | "left"
+  const PREF_CHEVRON = "zen.sitegroups.chevron-position"; // "right" | "left" | "hidden"
+  const PREF_TAB_MENU = "zen.sitegroups.tab-menu-items";
+  const PREF_TAB_COUNT = "zen.sitegroups.tab-count"; // "folded" | "always" | "never"
+  const PREF_HEADER_LINE = "zen.sitegroups.header-line";
+  const PREF_HEADER_BUTTON = "zen.sitegroups.header-button"; // "clear" | "unload" | "none"
+  const PREF_INDENT = "zen.sitegroups.indent-tabs";
+  const PREF_GROUP_LINE = "zen.sitegroups.group-line";
+  const PREF_BACKGROUND = "zen.sitegroups.background"; // "none" | "header" | "tabs" | "both"
+  // A section only forms once this many of its tabs are open in a space,
+  // unless it sets its own number ("1" to "10"; a string, so Sine's options
+  // box can offer it as a list).
+  const PREF_MIN_TABS = "zen.sitegroups.min-tabs";
+  const MAX_MIN_TABS = 10;
 
   // A section is either one website ("site") or several under a name you
-  // pick ("collection"). A website can only belong to one section.
+  // pick ("collection"). A website can only belong to one section. `spaces`
+  // lists the spaces it's used in (Zen workspace ids); empty means all.
+  // `minTabs` is how many of its tabs it takes to form; null means the
+  // "Group from" option.
   // Sites that tend to pile up dozens of tabs.
   const DEFAULT_SECTIONS = [
-    { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null },
-    { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null },
-    { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null },
-    { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null },
+    { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [], minTabs: null },
+    { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [], minTabs: null },
+    { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [], minTabs: null },
+    { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [], minTabs: null },
   ];
-  const defaultSections = () => DEFAULT_SECTIONS.map(s => ({ ...s, sites: [...s.sites] }));
+  const defaultSections = () => DEFAULT_SECTIONS.map(s => ({ ...s, sites: [...s.sites], spaces: [] }));
+  const SPACE_ID = /^\{[0-9a-f-]{36}\}$/i;
   const CONTAINER_TAGS = new Set(["tab-group", "zen-folder", "tab-split-view-wrapper"]);
   const BLANK_PAGES = new Set(["about:blank", "about:newtab", "about:home", "about:privatebrowsing"]);
 
@@ -96,6 +112,51 @@
     .zsg-header:not([zsg-empty]):hover .zsg-clear { display: flex; }
     .zsg-rest { min-height: 12px; }
 
+    /* Header options: tab count, arrow, line and button. */
+    :root[zsg-tab-count="always"] .zsg-header:not([zsg-empty]) .zsg-count { display: flex; }
+    :root[zsg-tab-count="never"] .zsg-count,
+    .zsg-header[zsg-chevron-hidden] .zsg-chevron,
+    .zsg-header[zsg-button="none"] .zsg-clear,
+    .zsg-header[zsg-button="unload"][zsg-none-loaded] .zsg-clear { display: none !important; }
+    :root[zsg-no-header-line] .zsg-header .zsg-line { visibility: hidden; }
+
+    /* Grouped tabs: indented like a folder's (Zen's own indent), a line along
+       each group, a tinted background. --zsg-color is the section's color. */
+    :root[zsg-group-line] tab[zsg-group] { --zen-folder-indent: 10px; }
+    :root[zsg-indent] tab[zsg-group] { --zen-folder-indent: 16px; }
+    :root[zsg-group-line][zen-sidebar-expanded="true"] tab[zsg-group]:not([zen-glance-tab]) {
+      position: relative;
+      overflow: visible;
+    }
+    :root[zsg-group-line][zen-sidebar-expanded="true"] tab[zsg-group]:not([zen-glance-tab])::after {
+      content: "";
+      position: absolute;
+      inset-block: calc(-1 * var(--tab-margin-block, 2px));
+      inset-inline-start: calc(-1 * var(--zen-folder-indent) + 3px);
+      width: 2px;
+      border-radius: 1px;
+      background: var(--zsg-color, var(--zsg-neutral));
+      opacity: 0.75;
+      pointer-events: none;
+    }
+    :root[zsg-group-line] tab[zsg-group][zsg-first]::after { inset-block-start: 4px; }
+    :root[zsg-group-line] tab[zsg-group][zsg-last]::after { inset-block-end: 4px; }
+    :root[zsg-background="header"],
+    :root[zsg-background="both"] {
+      .zsg-header:not([zsg-empty]) { background: color-mix(in srgb, var(--zsg-color, currentColor) 14%, transparent); }
+      .zsg-header:not([zsg-empty]):hover { background: color-mix(in srgb, var(--zsg-color, currentColor) 22%, transparent); }
+    }
+    :root[zsg-background="tabs"],
+    :root[zsg-background="both"] {
+      tab[zsg-group]:not([visuallyselected], [multiselected]) > .tab-stack > .tab-background {
+        background-color: color-mix(in srgb, var(--zsg-color, currentColor) 10%, transparent) !important;
+      }
+      tab[zsg-group]:not([visuallyselected], [multiselected]):hover > .tab-stack > .tab-background {
+        background-color: color-mix(in srgb, var(--zsg-color, currentColor) 18%, transparent) !important;
+      }
+    }
+    :root { --zsg-neutral: light-dark(rgba(0, 0, 0, 0.25), rgba(255, 255, 255, 0.25)); }
+
     :root:not([zen-sidebar-expanded="true"]) {
       .zsg-chevron, .zsg-label, .zsg-count, .zsg-clear { display: none !important; }
       .zsg-header { min-height: 12px; }
@@ -147,8 +208,30 @@
         name: String(s.name ?? ""),
         sites: (Array.isArray(s.sites) ? s.sites : []).map(normalizeSite).filter(Boolean),
         color: /^#[0-9a-f]{6}$/i.test(s.color ?? "") ? s.color : null,
+        spaces: [...new Set((Array.isArray(s.spaces) ? s.spaces : []).filter(id => SPACE_ID.test(id)))],
+        minTabs: Number.isInteger(s.minTabs) && s.minTabs >= 1 && s.minTabs <= MAX_MIN_TABS ? s.minTabs : null,
       }))
       .filter(s => s.sites.length || s.kind === "collection");
+  }
+
+  // Ids of the browser's spaces, as of the last layout.
+  let knownSpaces = new Set();
+
+  // Whether a section is used in the space with this id (null: no spaces).
+  // Spaces it lists that don't exist (deleted, or from a backup made on
+  // another computer) don't count, and with none left it's used everywhere.
+  const inSpace = (section, spaceId) =>
+    !spaceId ||
+    section.spaces.includes(spaceId) ||
+    !section.spaces.some(id => knownSpaces.has(id));
+
+  // The browser's spaces, for the settings page.
+  function getSpaces() {
+    try {
+      return gZenWorkspaces.getWorkspaces().map(w => ({ id: w.uuid, name: w.name, icon: w.icon ?? "" }));
+    } catch {
+      return [];
+    }
   }
   const setSections = sections => writeJSON(PREF_SECTIONS, sections);
 
@@ -432,13 +515,17 @@
   }
 
   // Index of the section whose website matches most specifically, or -1.
-  function sectionIndexForHost(host, sections) {
+  // With `spaceId`, only sections used in that space count.
+  function sectionIndexForHost(host, sections, spaceId = null) {
     if (!host) {
       return -1;
     }
     let best = -1;
     let bestLen = 0;
     sections.forEach((section, i) => {
+      if (spaceId && !inSpace(section, spaceId)) {
+        return;
+      }
       for (const d of section.sites) {
         if ((host === d || host.endsWith("." + d)) && d.length > bestLen) {
           best = i;
@@ -481,10 +568,9 @@
     count.className = "zsg-count";
     const line = document.createXULElement("hbox");
     line.className = "zsg-line";
+    // "Clear" or "Unload", whichever the options pick (updateHeader).
     const clear = document.createXULElement("label");
     clear.className = "zsg-clear";
-    clear.setAttribute("value", "Clear");
-    clear.setAttribute("tooltiptext", "Close all tabs in this section");
     header.append(chevron, text, count, line, clear);
 
     // Keep clicks away from the tab strip (double-click there opens a new tab).
@@ -497,7 +583,7 @@
         return;
       }
       if (e.target.classList.contains("zsg-clear")) {
-        closeGroup(header);
+        header.getAttribute("zsg-button") === "unload" ? unloadGroup(header) : closeGroup(header);
       } else {
         toggleCollapsed(header.getAttribute("data-label"));
       }
@@ -514,41 +600,90 @@
     return rest;
   }
 
-  function updateHeader(header, section, tabCount, opts) {
-    const label = displayName(section);
-    header.querySelector(".zsg-label").setAttribute("value", label);
-    header.querySelector(".zsg-count").setAttribute("value", String(tabCount));
-    header.toggleAttribute("zsg-closed", tabCount > 0 && opts.collapsed.has(label));
-    header.toggleAttribute("zsg-empty", !tabCount);
-    header.toggleAttribute("zsg-chevron-right", opts.chevronRight);
-    const color = opts.colored ? sectionColor(section) : null;
-    header.toggleAttribute("zsg-colored", !!color);
+  const BUTTONS = {
+    clear: ["Clear", "Close all tabs in this section"],
+    unload: ["Unload", "Unload all tabs in this section"],
+  };
+
+  // A tab whose page is loaded (not unloaded, and not waiting to load).
+  const isLoaded = tab => !tab.hasAttribute("pending");
+
+  function setColor(el, color) {
     if (color) {
-      header.style.setProperty("--zsg-color", color);
+      el.style.setProperty("--zsg-color", color);
     } else {
-      header.style.removeProperty("--zsg-color");
+      el.style.removeProperty("--zsg-color");
     }
   }
 
+  function updateHeader(header, section, tabs, opts) {
+    const label = displayName(section);
+    header.querySelector(".zsg-label").setAttribute("value", label);
+    header.querySelector(".zsg-count").setAttribute("value", String(tabs.length));
+    header.toggleAttribute("zsg-closed", tabs.length > 0 && opts.collapsed.has(label));
+    header.toggleAttribute("zsg-empty", !tabs.length);
+    header.toggleAttribute("zsg-chevron-right", opts.chevron === "right");
+    header.toggleAttribute("zsg-chevron-hidden", opts.chevron === "hidden");
+    header.setAttribute("zsg-button", opts.button);
+    header.toggleAttribute("zsg-none-loaded", !tabs.some(isLoaded));
+    const [text, tooltip] = BUTTONS[opts.button] ?? BUTTONS.clear;
+    const button = header.querySelector(".zsg-clear");
+    button.setAttribute("value", text);
+    button.setAttribute("tooltiptext", tooltip);
+    const color = opts.colored ? sectionColor(section) : null;
+    header.toggleAttribute("zsg-colored", !!color);
+    setColor(header, color);
+  }
+
+  function ungroup(tab) {
+    for (const name of ["zsg-group", "zsg-collapsed", "zsg-first", "zsg-last"]) {
+      tab.removeAttribute(name);
+    }
+    tab.style.removeProperty("--zsg-color");
+  }
+
+  // Lays out one space's tabs. Returns the tabs it put in a section.
   function layoutSection(container, sections, opts) {
+    const spaceId = container.getAttribute("zen-workspace-id");
     const content = [...container.children].filter(isContent);
-    const grouped = [];
+    let grouped = [];
     for (const el of content) {
       if (el.localName !== "tab") {
         continue;
       }
-      const si = sectionIndexForHost(tabHost(el), sections);
+      const si = sectionIndexForHost(tabHost(el), sections, spaceId);
       if (si >= 0) {
-        const label = displayName(sections[si]);
         grouped.push({ tab: el, si });
-        el.setAttribute("zsg-group", label);
-        el.toggleAttribute("zsg-collapsed", opts.collapsed.has(label));
       } else {
-        el.removeAttribute("zsg-group");
-        el.removeAttribute("zsg-collapsed");
+        ungroup(el);
       }
     }
+    // Sections with fewer tabs than their minimum don't form: their tabs stay
+    // where they are.
+    const counts = new Map();
+    for (const { si } of grouped) {
+      counts.set(si, (counts.get(si) ?? 0) + 1);
+    }
+    grouped = grouped.filter(({ tab, si }) => {
+      if (counts.get(si) >= (sections[si].minTabs ?? opts.minTabs)) {
+        return true;
+      }
+      ungroup(tab);
+      return false;
+    });
     grouped.sort((a, b) => a.si - b.si); // stable: keeps order within a section
+    const colors = new Map();
+    grouped.forEach(({ tab, si }, i) => {
+      const label = displayName(sections[si]);
+      tab.setAttribute("zsg-group", label);
+      tab.toggleAttribute("zsg-collapsed", opts.collapsed.has(label));
+      tab.toggleAttribute("zsg-first", grouped[i - 1]?.si !== si);
+      tab.toggleAttribute("zsg-last", grouped[i + 1]?.si !== si);
+      if (!colors.has(si)) {
+        colors.set(si, opts.colored ? sectionColor(sections[si]) : null);
+      }
+      setColor(tab, colors.get(si));
+    });
 
     // 1. Move grouped tabs to the top, in section order.
     let prevTab = null;
@@ -579,7 +714,7 @@
     let last = null; // last element of the sections area so far
     sections.forEach((section, si) => {
       const tabs = grouped.filter(g => g.si === si).map(g => g.tab);
-      if (!tabs.length && !opts.keepEmpty) {
+      if ((!tabs.length && !opts.keepEmpty) || !inSpace(section, spaceId)) {
         return;
       }
       const label = displayName(section);
@@ -587,7 +722,7 @@
         return; // two sections with the same name: the first one wins
       }
       const header = existing.get(label) ?? makeHeader(label);
-      updateHeader(header, section, tabs.length, opts);
+      updateHeader(header, section, tabs, opts);
 
       if (tabs.length) {
         if (header.nextElementSibling !== tabs[0]) {
@@ -631,7 +766,23 @@
         el.remove();
       }
     }
+    return grouped.map(({ tab }) => tab);
   }
+
+  // Options that style tabs and headers through attributes on the window.
+  function applyLook(opts) {
+    const root = document.documentElement;
+    root.setAttribute("zsg-tab-count", opts.tabCount);
+    root.setAttribute("zsg-background", opts.background);
+    root.toggleAttribute("zsg-no-header-line", !opts.headerLine);
+    root.toggleAttribute("zsg-indent", opts.indent);
+    root.toggleAttribute("zsg-group-line", opts.groupLine);
+  }
+
+  const choice = (pref, fallback, values) => {
+    const value = Services.prefs.getStringPref(pref, fallback);
+    return values.includes(value) ? value : fallback;
+  };
 
   // Lay out before the next paint, so new tabs never flash in the wrong spot.
   let frame = null;
@@ -658,10 +809,27 @@
         keepEmpty: Services.prefs.getBoolPref(PREF_KEEP_EMPTY, false),
         restDivider: Services.prefs.getBoolPref(PREF_REST_DIVIDER, true),
         colored: Services.prefs.getBoolPref(PREF_COLORED, true),
-        chevronRight: Services.prefs.getStringPref(PREF_CHEVRON, "right") !== "left",
+        chevron: choice(PREF_CHEVRON, "right", ["right", "left", "hidden"]),
+        tabCount: choice(PREF_TAB_COUNT, "folded", ["folded", "always", "never"]),
+        headerLine: Services.prefs.getBoolPref(PREF_HEADER_LINE, true),
+        button: choice(PREF_HEADER_BUTTON, "clear", ["clear", "unload", "none"]),
+        indent: Services.prefs.getBoolPref(PREF_INDENT, false),
+        groupLine: Services.prefs.getBoolPref(PREF_GROUP_LINE, false),
+        background: choice(PREF_BACKGROUND, "none", ["none", "header", "tabs", "both"]),
+        minTabs: Number(choice(PREF_MIN_TABS, "1", Array.from({ length: MAX_MIN_TABS }, (_, i) => String(i + 1)))),
       };
+      applyLook(opts);
+      knownSpaces = new Set(getSpaces().map(s => s.id));
+      const grouped = new Set();
       for (const container of document.querySelectorAll(".zen-workspace-normal-tabs-section")) {
-        layoutSection(container, sections, opts);
+        layoutSection(container, sections, opts).forEach(tab => grouped.add(tab));
+      }
+      // Tabs that left a space's list (pinned, put in a folder or a split
+      // view) keep nothing of their section, so a folded one isn't hidden.
+      for (const tab of gBrowser.tabs) {
+        if (!grouped.has(tab) && tab.hasAttribute("zsg-group")) {
+          ungroup(tab);
+        }
       }
     } catch (ex) {
       console.error("[Zen Tab Groups]", ex);
@@ -676,12 +844,24 @@
     setCollapsed(set); // pref observer re-runs layout
   }
 
-  function closeGroup(header) {
+  function groupTabs(header) {
     const label = header.getAttribute("data-label");
-    const tabs = [...header.parentElement.children].filter(
+    return [...header.parentElement.children].filter(
       el => el.localName === "tab" && el.getAttribute("zsg-group") === label
     );
-    gBrowser.removeTabs(tabs);
+  }
+
+  function closeGroup(header) {
+    gBrowser.removeTabs(groupTabs(header));
+  }
+
+  // Like a folder's unload button: the tabs stay, their pages are unloaded
+  // (Zen picks another tab first if the selected one is among them).
+  function unloadGroup(header) {
+    const tabs = groupTabs(header).filter(isLoaded);
+    if (tabs.length) {
+      gBrowser.explicitUnloadTabs(tabs);
+    }
   }
 
   function openSettings() {
@@ -754,13 +934,23 @@
     let contextHost = null;
     const tabMenu = document.getElementById("tabContextMenu");
     const sep = document.createXULElement("menuseparator");
-    const ownItem = menuItem("", () => contextHost && addSiteAsSection(contextHost));
+    // Labels name the tab's site once the menu opens; these are for anything
+    // that lists the items before that (like Zen Context Menu's settings).
+    const ownItem = menuItem("Give this site its own section", () => contextHost && addSiteAsSection(contextHost));
     const collectionMenu = document.createXULElement("menu");
+    collectionMenu.setAttribute("label", "Add this site to a collection");
     const collectionPopup = document.createXULElement("menupopup");
     collectionMenu.append(collectionPopup);
-    const removeItem = menuItem("", () => contextHost && removeSite(contextHost));
+    const removeItem = menuItem("Remove this site from its section", () => contextHost && removeSite(contextHost));
     const settingsItem = menuItem("Tab Groups settings…", openSettings);
     const all = [sep, ownItem, collectionMenu, removeItem, settingsItem];
+    // Ids let other mods (Zen Context Menu) recognize the items, whose labels
+    // change with the tab's site.
+    sep.id = "context_zsg-separator";
+    ownItem.id = "context_zsg-own-section";
+    collectionMenu.id = "context_zsg-add-to-collection";
+    removeItem.id = "context_zsg-remove-site";
+    settingsItem.id = "context_zsg-settings";
     tabMenu.append(...all);
 
     tabMenu.addEventListener("popupshowing", e => {
@@ -768,7 +958,10 @@
         return;
       }
       const tab = TabContextMenu.contextTab;
-      const host = tab && !tab.pinned && modEnabled ? tabHost(tab) : null;
+      // Switched off in the options: none of the items, settings included
+      // (the header menu and Sine's gear button still open it).
+      const showItems = Services.prefs.getBoolPref(PREF_TAB_MENU, true);
+      const host = tab && !tab.pinned && modEnabled && showItems ? tabHost(tab) : null;
       contextHost = host;
       all.forEach(el => (el.hidden = !host));
       if (!host) {
@@ -797,23 +990,61 @@
     // Header context menu: reorder / rename / remove.
     const popup = document.createXULElement("menupopup");
     popup.id = "zsg-header-menu";
+    const triggerHeader = () => popup.triggerNode?.closest(".zsg-header");
     const closeAllItem = menuItem("Close all tabs in this section", () => {
-      const header = popup.triggerNode?.closest(".zsg-header");
+      const header = triggerHeader();
       if (header) {
         closeGroup(header);
       }
     });
-    popup.addEventListener("popupshowing", () => {
-      closeAllItem.disabled = !!popup.triggerNode?.closest(".zsg-header")?.hasAttribute("zsg-empty");
+    const unloadAllItem = menuItem("Unload all tabs in this section", () => {
+      const header = triggerHeader();
+      if (header) {
+        unloadGroup(header);
+      }
     });
     const edit = fn => () => {
-      const label = popup.triggerNode?.closest(".zsg-header")?.getAttribute("data-label");
+      const label = triggerHeader()?.getAttribute("data-label");
       const sections = getSections();
       const i = sections.findIndex(s => displayName(s) === label);
       if (i >= 0 && fn(sections, i) !== false) {
         setSections(sections);
       }
     };
+    // The space whose list the header is in.
+    const headerSpace = () => triggerHeader()?.parentElement?.getAttribute("zen-workspace-id") ?? null;
+    const spacesSep = document.createXULElement("menuseparator");
+    const onlyHereItem = menuItem(
+      "Only in this space",
+      edit((s, i) => {
+        const space = headerSpace();
+        if (!space) {
+          return false;
+        }
+        s[i].spaces = [space];
+      })
+    );
+    const everywhereItem = menuItem(
+      "Show in all spaces",
+      edit((s, i) => {
+        s[i].spaces = [];
+      })
+    );
+    popup.addEventListener("popupshowing", e => {
+      if (e.target !== popup) {
+        return;
+      }
+      const header = triggerHeader();
+      closeAllItem.disabled = !!header?.hasAttribute("zsg-empty");
+      unloadAllItem.disabled = !!header?.hasAttribute("zsg-none-loaded");
+      const section = getSections().find(s => displayName(s) === header?.getAttribute("data-label"));
+      const space = headerSpace();
+      // With one space (or spaces off) there's nothing to choose.
+      const several = getSpaces().length > 1;
+      onlyHereItem.hidden = !several || !space || (section?.spaces.length === 1 && section.spaces[0] === space);
+      everywhereItem.hidden = !section?.spaces.length;
+      spacesSep.hidden = onlyHereItem.hidden && everywhereItem.hidden;
+    });
     popup.append(
       menuItem("Move section up", edit((s, i) => i > 0 && ([s[i - 1], s[i]] = [s[i], s[i - 1]]))),
       menuItem("Move section down", edit((s, i) => i < s.length - 1 && ([s[i + 1], s[i]] = [s[i], s[i + 1]]))),
@@ -835,7 +1066,11 @@
         })
       ),
       menuItem("Remove section", edit((s, i) => s.splice(i, 1))),
+      spacesSep,
+      onlyHereItem,
+      everywhereItem,
       document.createXULElement("menuseparator"),
+      unloadAllItem,
       closeAllItem,
       document.createXULElement("menuseparator"),
       menuItem("Tab Groups settings…", openSettings)
@@ -888,13 +1123,15 @@
     setupMenus();
 
     // Used by the settings page.
-    window.ZenSiteGroups = { getSections, setSections, defaultSections, normalizeSite, defaultName, displayName, iconColor };
+    window.ZenSiteGroups = { getSections, setSections, defaultSections, normalizeSite, defaultName, displayName, iconColor, getSpaces };
     if (Services.prefs.prefHasUserValue(PREF_OLD_ICON_COLORS)) {
       Services.prefs.clearUserPref(PREF_OLD_ICON_COLORS);
     }
 
     const tabContainer = gBrowser.tabContainer;
-    for (const type of ["TabOpen", "TabClose", "TabMove", "TabPinned", "TabUnpinned", "TabSelect", "TabGrouped", "TabUngrouped"]) {
+    // TabBrowserDiscarded / TabBrowserInserted: a tab unloaded or loaded
+    // again, for the Unload button.
+    for (const type of ["TabOpen", "TabClose", "TabMove", "TabPinned", "TabUnpinned", "TabSelect", "TabGrouped", "TabUngrouped", "TabBrowserDiscarded", "TabBrowserInserted"]) {
       tabContainer.addEventListener(type, schedule);
     }
     window.addEventListener("ZenWorkspacesUIUpdate", schedule);

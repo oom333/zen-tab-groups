@@ -11,8 +11,11 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 - **Sorted automatically.** New tabs go straight into their section, in the order you choose. No dragging.
 - **Colored headers.** Each header takes the main color of the site's logo, or a color you pick.
 - **Collections.** Put several sites under one name, like ChatGPT, Claude and Gemini as "AI".
-- **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all.
-- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas.
+- **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all (or **Unload** to free their memory).
+- **Your look.** Indent a section's tabs, draw a line along them, tint the header or tabs, hide the header line, arrow or tab count.
+- **Per space.** Keep a section to the spaces you choose, and group a site only once enough of its tabs are open.
+- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: AI, Social, Watch, and Banking (100 US banks, card issuers, money apps and credit unions).
+- **Backups.** Save your sections and options to a file, and restore them later or on another computer.
 
 ![Before and after](previews/before-after.png)
 
@@ -39,8 +42,8 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 Out of the box you get sections for **YouTube, Reddit, Wikipedia and X**.
 
 - **Right-click a tab** → *Give this site its own section*, or add it to a collection.
-- **Right-click a header** → move it up or down, rename it, remove it, close all its tabs, or open the settings.
-- **Settings page:** right-click any header or tab → **Tab Groups settings…**
+- **Right-click a header** → move it up or down, rename it, remove it, keep it to the current space (or show it in all spaces again), unload or close all its tabs, or open the settings.
+- **Settings page:** right-click any header or tab → **Tab Groups settings…**, or click the settings button of Tab Groups in Sine.
 
 ![Settings page](previews/settings.png)
 
@@ -51,14 +54,39 @@ Out of the box you get sections for **YouTube, Reddit, Wikipedia and X**.
 
 A website can only be in one section. The most specific address wins, so `music.youtube.com` can have its own section next to `youtube.com`.
 
+### Spaces
+
+A section is used in every space unless you pick some: with more than one space, each section on the settings page has a button listing the spaces it's used in, or right-click its header → **Only in this space**. In the other spaces its tabs aren't grouped.
+
 ### Options
 
 Available on the settings page, and in Sine's settings for the mod:
 
+Appearance:
+
 - **Colored headers:** on by default.
-- **Always show headers:** keeps a section's header even when none of its tabs are open.
-- **Collapse arrow:** right of the name (default) or left of it.
+- **Background:** a light shade of the section's color behind its header, its tabs, or both.
+- **Indent tabs:** shifts each section's tabs to the right, like the tabs in a folder.
+- **Line along tabs:** a line in the section's color down the side of its tabs.
+- **Line in headers:** the line from a section's name to the edge of the sidebar; on by default.
+- **Collapse arrow:** right of the name (default), left of it, or hidden. Clicking a header folds its tabs either way.
+- **Tab count:** next to the name when a section is folded (default), always, or never.
 - **Divider below sections:** a thin line between your sections and your other tabs.
+
+Behavior:
+
+- **Group from:** how many of a section's tabs must be open in a space before they're grouped (1 by default, up to 10). With fewer, they stay where they are. Each section can set its own number on the settings page (**Group from** under its websites), say 3 for YouTube and the default for the rest.
+- **Header button:** what the button that appears when you hover a header does: **Clear** closes the section's tabs (default), **Unload** keeps them but unloads their pages, like a folder's button, or **None**.
+- **Always show headers:** keeps a section's header even when none of its tabs are open.
+- **Items in the tab menu:** on by default. Switch it off to keep Tab Groups' items out of the tab right-click menu; right-click a header to open the settings instead.
+
+### Backup
+
+On the settings page, **Save backup…** writes your sections and options to a `.json` file. **Restore from backup…** loads one back, replacing your current sections and options.
+
+### Collection ideas
+
+Add a ready-made collection with one click. If you already have a collection with the same name (say, your own "Banking"), the idea offers to add just the sites you're missing instead.
 
 ## Notes
 
