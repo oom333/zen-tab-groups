@@ -6,10 +6,47 @@
     "defaultValue": true
   },
   {
-    "property": "zen.sitegroups.keep-empty-headers",
-    "label": "Always show headers, even with no tabs open",
+    "property": "zen.sitegroups.background",
+    "label": "Background in the section's color",
+    "type": "dropdown",
+    "defaultValue": "none",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "None",
+        "value": "none"
+      },
+      {
+        "label": "Header",
+        "value": "header"
+      },
+      {
+        "label": "Tabs",
+        "value": "tabs"
+      },
+      {
+        "label": "Header and tabs",
+        "value": "both"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.indent-tabs",
+    "label": "Indent each section's tabs",
     "type": "checkbox",
     "defaultValue": false
+  },
+  {
+    "property": "zen.sitegroups.group-line",
+    "label": "Line along each section's tabs",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "zen.sitegroups.header-line",
+    "label": "Line in headers",
+    "type": "checkbox",
+    "defaultValue": true
   },
   {
     "property": "zen.sitegroups.chevron-position",
@@ -25,6 +62,31 @@
       {
         "label": "Left of the name",
         "value": "left"
+      },
+      {
+        "label": "Hidden",
+        "value": "hidden"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.tab-count",
+    "label": "Tab count in headers",
+    "type": "dropdown",
+    "defaultValue": "folded",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "When folded",
+        "value": "folded"
+      },
+      {
+        "label": "Always",
+        "value": "always"
+      },
+      {
+        "label": "Never",
+        "value": "never"
       }
     ]
   },
@@ -33,6 +95,62 @@
     "label": "Divider between sections and other tabs",
     "type": "checkbox",
     "defaultValue": true
+  },
+  {
+    "property": "zen.sitegroups.min-tabs",
+    "label": "Group a section's tabs from",
+    "type": "dropdown",
+    "defaultValue": "1",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "1 tab",
+        "value": "1"
+      },
+      {
+        "label": "2 tabs",
+        "value": "2"
+      },
+      {
+        "label": "3 tabs",
+        "value": "3"
+      },
+      {
+        "label": "4 tabs",
+        "value": "4"
+      },
+      {
+        "label": "5 tabs",
+        "value": "5"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.header-button",
+    "label": "Header button",
+    "type": "dropdown",
+    "defaultValue": "clear",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Clear (close the tabs)",
+        "value": "clear"
+      },
+      {
+        "label": "Unload (keep the tabs)",
+        "value": "unload"
+      },
+      {
+        "label": "None",
+        "value": "none"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.keep-empty-headers",
+    "label": "Always show headers, even with no tabs open",
+    "type": "checkbox",
+    "defaultValue": false
   },
   {
     "property": "zen.sitegroups.tab-menu-items",

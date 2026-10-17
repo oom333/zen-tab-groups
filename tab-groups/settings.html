@@ -20,7 +20,7 @@
           <div class="card-head">
             <div>
               <h2>Your sections</h2>
-              <p class="muted">Shown at the top of your tabs, in this order. Drag <span class="grip-inline">⠿</span> to reorder. A website can only be in one section.</p>
+              <p class="muted">Shown at the top of your tabs, in this order. Drag <span class="grip-inline">⠿</span> to reorder. A website can only be in one section. With several spaces, pick which ones a section is used in.</p>
             </div>
           </div>
 
@@ -56,7 +56,7 @@
         </section>
 
         <section class="card">
-          <h2>Options</h2>
+          <h2>Appearance</h2>
           <div class="options">
             <label class="option">
               <span class="option-text">
@@ -65,21 +65,59 @@
               </span>
               <input type="checkbox" class="switch" data-pref="zen.sitegroups.colored-headers" data-default="true">
             </label>
+            <div class="option">
+              <span class="option-text">
+                <b>Background</b>
+                <span class="muted">Fill the header, the section's tabs, or both with a light shade of its color.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.background" data-default="none" role="group" aria-label="Background">
+                <button type="button" data-value="none">None</button>
+                <button type="button" data-value="header">Header</button>
+                <button type="button" data-value="tabs">Tabs</button>
+                <button type="button" data-value="both">Both</button>
+              </div>
+            </div>
             <label class="option">
               <span class="option-text">
-                <b>Always show headers</b>
-                <span class="muted">Keep every section's header in the sidebar, even when none of its tabs are open.</span>
+                <b>Indent tabs</b>
+                <span class="muted">Shift each section's tabs to the right, under their header, like the tabs in a folder.</span>
               </span>
-              <input type="checkbox" class="switch" data-pref="zen.sitegroups.keep-empty-headers" data-default="false">
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.indent-tabs" data-default="false">
+            </label>
+            <label class="option">
+              <span class="option-text">
+                <b>Line along tabs</b>
+                <span class="muted">Draw a line in the section's color down the side of its tabs, so you can see where each section ends.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.group-line" data-default="false">
+            </label>
+            <label class="option">
+              <span class="option-text">
+                <b>Line in headers</b>
+                <span class="muted">The line that runs from a section's name to the edge of the sidebar.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.header-line" data-default="true">
             </label>
             <div class="option">
               <span class="option-text">
                 <b>Collapse arrow</b>
-                <span class="muted">Where the arrow appears when you hover a header. Click the header to fold its tabs away.</span>
+                <span class="muted">Where the arrow appears when you hover a header. Click the header to fold its tabs away, with or without the arrow.</span>
               </span>
               <div class="segmented" data-pref="zen.sitegroups.chevron-position" data-default="right" role="group" aria-label="Collapse arrow position">
                 <button type="button" data-value="left">Left of name</button>
                 <button type="button" data-value="right">Right of name</button>
+                <button type="button" data-value="hidden">Hidden</button>
+              </div>
+            </div>
+            <div class="option">
+              <span class="option-text">
+                <b>Tab count</b>
+                <span class="muted">How many tabs a section has, next to its name.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.tab-count" data-default="folded" role="group" aria-label="Tab count">
+                <button type="button" data-value="folded">When folded</button>
+                <button type="button" data-value="always">Always</button>
+                <button type="button" data-value="never">Never</button>
               </div>
             </div>
             <label class="option">
@@ -88,6 +126,43 @@
                 <span class="muted">Draw a thin line between your sections and the rest of your tabs.</span>
               </span>
               <input type="checkbox" class="switch" data-pref="zen.sitegroups.rest-divider" data-default="true">
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Behavior</h2>
+          <div class="options">
+            <div class="option">
+              <span class="option-text">
+                <b>Group from</b>
+                <span class="muted">How many of a section's tabs must be open in a space before they're grouped. With fewer, they stay where they are.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.min-tabs" data-default="1" role="group" aria-label="Tabs needed to form a section">
+                <button type="button" data-value="1">1 tab</button>
+                <button type="button" data-value="2">2</button>
+                <button type="button" data-value="3">3</button>
+                <button type="button" data-value="4">4</button>
+                <button type="button" data-value="5">5</button>
+              </div>
+            </div>
+            <div class="option">
+              <span class="option-text">
+                <b>Header button</b>
+                <span class="muted">Shown when you hover a header. Clear closes the section's tabs; Unload keeps them but frees their memory, like a folder's button.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.header-button" data-default="clear" role="group" aria-label="Header button">
+                <button type="button" data-value="clear">Clear</button>
+                <button type="button" data-value="unload">Unload</button>
+                <button type="button" data-value="none">None</button>
+              </div>
+            </div>
+            <label class="option">
+              <span class="option-text">
+                <b>Always show headers</b>
+                <span class="muted">Keep every section's header in the sidebar, even when none of its tabs are open.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.keep-empty-headers" data-default="false">
             </label>
             <label class="option">
               <span class="option-text">
@@ -129,6 +204,8 @@
       <input type="range" id="hue" class="hue" min="0" max="359" step="1" aria-label="Pick any color">
     </label>
   </div>
+
+  <div id="spaces-popover" class="popover spaces-popover" hidden></div>
 
   <dialog id="confirm" class="confirm">
     <form method="dialog">

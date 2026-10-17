@@ -19,14 +19,22 @@ const api = chromeWin?.ZenSiteGroups ?? null;
 // it can still be looked at.
 // Same as the defaults in tab-groups.uc.js.
 const DEFAULT_SECTIONS = [
-  { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null },
-  { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null },
-  { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null },
-  { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null },
+  { kind: "site", name: "YouTube", sites: ["youtube.com"], color: null, spaces: [] },
+  { kind: "site", name: "Reddit", sites: ["reddit.com"], color: null, spaces: [] },
+  { kind: "site", name: "Wikipedia", sites: ["wikipedia.org"], color: null, spaces: [] },
+  { kind: "site", name: "X", sites: ["x.com", "twitter.com"], color: null, spaces: [] },
 ];
 const defaultSections = () => api?.defaultSections?.() ?? structuredClone(DEFAULT_SECTIONS);
 const SAMPLE = new Map([[PREF_SECTIONS, JSON.stringify(DEFAULT_SECTIONS)]]);
 const SAMPLE_COLORS = { "youtube.com": "#ff0033", "reddit.com": "#ff4500" };
+const SAMPLE_SPACES = [
+  { id: "{00000000-0000-4000-8000-000000000001}", name: "Personal", icon: "🏠" },
+  { id: "{00000000-0000-4000-8000-000000000002}", name: "Work", icon: "💼" },
+];
+const SPACE_ID = /^\{[0-9a-f-]{36}\}$/i;
+
+// Zen's spaces, for sections used in only some of them.
+const spaces = api ? (api.getSpaces?.() ?? []) : inZen ? [] : SAMPLE_SPACES;
 
 const prefs = inZen
   ? {
@@ -188,6 +196,7 @@ function parseSections(raw) {
       name: String(s.name ?? ""),
       sites: (Array.isArray(s.sites) ? s.sites : []).map(normalizeSite).filter(Boolean),
       color: /^#[0-9a-f]{6}$/i.test(s.color ?? "") ? s.color : null,
+      spaces: [...new Set((Array.isArray(s.spaces) ? s.spaces : []).filter(id => SPACE_ID.test(id)))],
     }));
 }
 
@@ -322,7 +331,7 @@ function remove(section) {
 let focusAfterRender = null;
 
 function addWebsite() {
-  const section = { kind: "site", name: "", sites: [], color: null };
+  const section = { kind: "site", name: "", sites: [], color: null, spaces: [] };
   sections.push(section);
   focusAfterRender = { section, selector: ".site-input" };
   save();
@@ -336,6 +345,7 @@ function addCollection() {
     name: "New collection",
     sites: [],
     color: PALETTE.find(c => !used.has(c)) ?? PALETTE[0],
+    spaces: [],
   };
   sections.push(section);
   focusAfterRender = { section, selector: ".name", select: true };
@@ -352,7 +362,7 @@ const freeSites = idea => idea.sites.filter(site => !sections.some(s => s.sites.
 // collection that already has its name.
 function addIdea(idea) {
   const existing = ideaSection(idea);
-  const section = existing ?? { kind: "collection", name: idea.name, sites: [], color: idea.color };
+  const section = existing ?? { kind: "collection", name: idea.name, sites: [], color: idea.color, spaces: [] };
   const skipped = [];
   let added = 0;
   for (const site of idea.sites) {
@@ -435,6 +445,7 @@ function markSelected() {
 
 function openPopover(section, button) {
   closePopover();
+  closeSpacesPopover();
   popoverSection = section;
   button.parentElement.append(popover);
   popover.classList.remove("above");
@@ -488,14 +499,108 @@ hueSlider.addEventListener("input", () => {
   });
 });
 
+/* ---------- spaces ---------- */
+
+// A popover like the color picker's, for the spaces a section is used in.
+const spacesPopover = document.getElementById("spaces-popover");
+let spacesSection = null;
+
+// The spaces a section shows in: those on its list that exist, or all of
+// them if none do (as in tab-groups.uc.js).
+function sectionSpaces(section) {
+  const listed = section.spaces.filter(id => spaces.some(s => s.id === id));
+  return listed.length ? listed : spaces.map(s => s.id);
+}
+
+// Space icons are emoji, or an image from Zen's icon set; spaces can have none.
+const spaceIcon = space =>
+  !space.icon
+    ? null
+    : /^(chrome|resource|data):/.test(space.icon)
+      ? h("img", { class: "space-icon", alt: "", src: space.icon })
+      : h("span", { class: "space-icon" }, space.icon);
+
+function spacesButtonContent(section) {
+  const shown = spaces.filter(s => section.spaces.includes(s.id));
+  if (!shown.length) {
+    return ["All spaces"];
+  }
+  return shown.length === 1 ? [spaceIcon(shown[0]), shown[0].name].filter(Boolean) : [`${shown.length} spaces`];
+}
+
+function renderSpacesPopover() {
+  const section = spacesSection;
+  const selected = new Set(sectionSpaces(section));
+  const everywhere = selected.size === spaces.length;
+  spacesPopover.replaceChildren(
+    h(
+      "button",
+      { type: "button", class: `auto-option${everywhere ? " selected" : ""}`, onclick: () => setSpaces(section, []) },
+      "All spaces"
+    ),
+    ...spaces.map(space =>
+      h(
+        "label",
+        { class: "space-option" },
+        h("input", {
+          type: "checkbox",
+          checked: selected.has(space.id),
+          onchange: e => toggleSpace(section, space.id, e.target.checked),
+        }),
+        spaceIcon(space),
+        h("span", {}, space.name)
+      )
+    )
+  );
+}
+
+function setSpaces(section, list) {
+  section.spaces = list;
+  save();
+  rowFor(section)?.querySelector(".spaces-button")?.replaceChildren(...spacesButtonContent(section));
+  renderSpacesPopover();
+}
+
+function toggleSpace(section, id, on) {
+  const chosen = new Set(sectionSpaces(section));
+  on ? chosen.add(id) : chosen.delete(id);
+  if (!chosen.size) {
+    renderSpacesPopover(); // a section needs at least one space
+    return;
+  }
+  setSpaces(section, chosen.size === spaces.length ? [] : spaces.map(s => s.id).filter(s => chosen.has(s)));
+}
+
+function openSpacesPopover(section, button) {
+  closePopover();
+  spacesSection = section;
+  button.parentElement.append(spacesPopover);
+  renderSpacesPopover();
+  spacesPopover.classList.remove("above");
+  spacesPopover.hidden = false;
+  if (spacesPopover.getBoundingClientRect().bottom > window.innerHeight - 8) {
+    spacesPopover.classList.add("above");
+  }
+}
+
+function closeSpacesPopover() {
+  spacesPopover.hidden = true;
+  spacesSection = null;
+  document.body.append(spacesPopover);
+}
+
 document.addEventListener("mousedown", e => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest(".color-button")) {
     closePopover();
+  }
+  if (!spacesPopover.hidden && !spacesPopover.contains(e.target) && !e.target.closest(".spaces-button")) {
+    closeSpacesPopover();
   }
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     closePopover();
+    closeSpacesPopover();
   }
 });
 
@@ -532,6 +637,21 @@ function renderSection(section, index) {
     },
     ...colorButtonContent(section)
   );
+
+  // Only with several spaces, or for a section already limited to some.
+  const spacesButton =
+    spaces.length > 1 || section.spaces.length
+      ? h(
+          "button",
+          {
+            type: "button",
+            class: "spaces-button",
+            title: "Spaces this section is used in",
+            onclick: e => (spacesSection === section ? closeSpacesPopover() : openSpacesPopover(section, e.currentTarget)),
+          },
+          ...spacesButtonContent(section)
+        )
+      : null;
 
   let sitesRow;
   if (isCollection) {
@@ -665,6 +785,7 @@ function renderSection(section, index) {
     h(
       "div",
       { class: "actions" },
+      spacesButton,
       colorButton,
       h("button", { type: "button", class: "icon-button", title: "Move up", disabled: index === 0, onclick: () => move(section, -1) }, "↑"),
       h("button", { type: "button", class: "icon-button", title: "Move down", disabled: index === sections.length - 1, onclick: () => move(section, 1) }, "↓"),
@@ -733,7 +854,16 @@ function renderPreview() {
   const colored = coloredHeaders();
   const keepEmpty = prefs.getBool("zen.sitegroups.keep-empty-headers", false);
   const divider = prefs.getBool("zen.sitegroups.rest-divider", true);
-  const arrowRight = prefs.getString("zen.sitegroups.chevron-position", "right") !== "left";
+  const arrow = prefs.getString("zen.sitegroups.chevron-position", "right");
+  const tabCount = prefs.getString("zen.sitegroups.tab-count", "folded");
+  const button = prefs.getString("zen.sitegroups.header-button", "clear");
+  const background = prefs.getString("zen.sitegroups.background", "none");
+  const preview = document.getElementById("preview");
+  preview.classList.toggle("indent", prefs.getBool("zen.sitegroups.indent-tabs", false));
+  preview.classList.toggle("group-line", prefs.getBool("zen.sitegroups.group-line", false));
+  preview.classList.toggle("no-header-line", !prefs.getBool("zen.sitegroups.header-line", true));
+  preview.classList.toggle("bg-header", background === "header" || background === "both");
+  preview.classList.toggle("bg-tabs", background === "tabs" || background === "both");
   const rows = [h("div", { class: "p-new" }, "+  New Tab")];
   let first = true;
   for (const section of sections) {
@@ -741,23 +871,35 @@ function renderPreview() {
       continue;
     }
     const color = colored ? sectionColor(section) : null;
+    const sites = section.sites.slice(0, section.kind === "site" ? 1 : 3);
     rows.push(
       h(
         "div",
         {
-          class: `p-header${color ? " colored" : ""}${section.sites.length ? "" : " empty"}${arrowRight ? " arrow-right" : ""}`,
+          class: `p-header${color ? " colored" : ""}${sites.length ? "" : " empty"}${arrow === "right" ? " arrow-right" : ""}${arrow === "hidden" ? " arrow-hidden" : ""}`,
           style: { "--c": color },
           title: "Hover to see the collapse arrow",
         },
         h("span", { class: "chevron" }),
         h("span", { class: "label" }, displayName(section)),
-        h("span", { class: "line" })
+        tabCount === "always" && sites.length ? h("span", { class: "count" }, String(sites.length)) : null,
+        h("span", { class: "line" }),
+        button !== "none" && sites.length ? h("span", { class: "action" }, button === "unload" ? "Unload" : "Clear") : null
       )
     );
-    for (const site of section.sites.slice(0, section.kind === "site" ? 1 : 3)) {
-      const title = section.kind === "site" ? displayName(section) : defaultName(site);
-      rows.push(h("div", { class: `p-tab${first ? " active" : ""}` }, favicon(site), h("span", {}, title)));
-      first = false;
+    if (sites.length) {
+      rows.push(
+        h(
+          "div",
+          { class: "p-group", style: { "--c": color } },
+          sites.map(site => {
+            const title = section.kind === "site" ? displayName(section) : defaultName(site);
+            const tab = h("div", { class: `p-tab${first ? " active" : ""}` }, favicon(site), h("span", {}, title));
+            first = false;
+            return tab;
+          })
+        )
+      );
     }
   }
   if (rows.length > 1 && divider) {
@@ -767,11 +909,12 @@ function renderPreview() {
     h("div", { class: "p-tab other" }, h("span", { class: "p-dot" }), h("span", {}, "Other tab")),
     h("div", { class: "p-tab other" }, h("span", { class: "p-dot" }), h("span", {}, "Another tab"))
   );
-  document.getElementById("preview").replaceChildren(...rows);
+  preview.replaceChildren(...rows);
 }
 
 function render() {
   closePopover();
+  closeSpacesPopover();
   renderList();
   renderIdeas();
   renderPreview();
