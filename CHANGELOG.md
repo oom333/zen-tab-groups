@@ -6,7 +6,7 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
-## [1.5.0]
+## [1.5.0] - 2026-10-19
 
 Brings in the 1.1.0–1.4.0 work from
 [oom333/zen-tab-groups#4](https://github.com/oom333/zen-tab-groups/pull/4)
