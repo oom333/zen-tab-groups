@@ -646,3 +646,7 @@ div.option { cursor: default; }
   .preview-wrap { position: static; order: -1; }
   .kinds { grid-template-columns: 1fr; }
 }
+
+/* Background strength slider. */
+.range { width: 160px; accent-color: var(--accent); cursor: pointer; }
+.range-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }

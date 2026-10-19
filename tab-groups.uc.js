@@ -32,15 +32,19 @@
   const PREF_INDENT = "zen.sitegroups.indent-tabs";
   const PREF_GROUP_LINE = "zen.sitegroups.group-line";
   const PREF_BACKGROUND = "zen.sitegroups.background"; // "none" | "header" | "tabs" | "both" | "group"
-  const PREF_BG_STRENGTH = "zen.sitegroups.background-strength"; // "light" | "medium" | "strong"
+  const PREF_BG_STRENGTH = "zen.sitegroups.background-strength"; // "4" to "60": % of color in tab backgrounds
   const PREF_COLOR_MODE = "zen.sitegroups.color-mode"; // "section" | "single"
   const PREF_SINGLE_COLOR = "zen.sitegroups.single-color"; // "#rrggbb", with color-mode "single"
   const PREF_READABLE = "zen.sitegroups.readable-text";
   // Zen's "Clear" (close unpinned tabs): above the tabs as usual, on the
   // divider below the sections (closing only the tabs below it), or both.
   const PREF_CLEAR_BUTTON = "zen.sitegroups.clear-button"; // "top" | "divider" | "both"
-  // How much of the color backgrounds use: [header %, tabs %].
-  const STRENGTHS = { light: [14, 10], medium: [26, 20], strong: [48, 40] };
+  // How much color backgrounds use, as [header %, tabs %]. Headers get a
+  // bit more so they stand out from their tabs. Same as the settings page's.
+  const strengthPcts = value => {
+    const s = Math.min(Math.max(Math.round(Number(value)) || 10, 4), 60);
+    return [Math.round(s * 1.25), s];
+  };
   // A section only forms once this many of its tabs are open in a space,
   // unless it sets its own number ("1" to "10"; a string, so Sine's options
   // box can offer it as a list).
@@ -398,7 +402,7 @@
   // so it's taken as near-black or near-white, the opposite of its text.
   function sectionInk(color, text, opts) {
     const base = luminance(text) > 0.3 ? [32, 32, 36] : [245, 245, 247];
-    const [hPct, tPct] = STRENGTHS[opts.strength];
+    const [hPct, tPct] = strengthPcts(opts.strength);
     const bg = opts.background;
     const headerPct = bg === "header" || bg === "both" ? hPct : bg === "group" ? tPct : 0;
     const tabPct = bg === "tabs" || bg === "both" || bg === "group" ? tPct : 0;
@@ -939,7 +943,7 @@
     const root = document.documentElement;
     root.setAttribute("zsg-tab-count", opts.tabCount);
     root.setAttribute("zsg-background", opts.background);
-    const [hPct, tPct] = STRENGTHS[opts.strength];
+    const [hPct, tPct] = strengthPcts(opts.strength);
     root.style.setProperty("--zsg-hpct", hPct + "%");
     root.style.setProperty("--zsg-tpct", tPct + "%");
     root.toggleAttribute("zsg-no-header-line", !opts.headerLine);
@@ -984,7 +988,7 @@
         indent: Services.prefs.getBoolPref(PREF_INDENT, false),
         groupLine: Services.prefs.getBoolPref(PREF_GROUP_LINE, false),
         background: choice(PREF_BACKGROUND, "none", ["none", "header", "tabs", "both", "group"]),
-        strength: choice(PREF_BG_STRENGTH, "light", Object.keys(STRENGTHS)),
+        strength: Services.prefs.getStringPref(PREF_BG_STRENGTH, "10"),
         colorMode: choice(PREF_COLOR_MODE, "section", ["section", "single"]),
         singleColor: /^#[0-9a-f]{6}$/i.test(Services.prefs.getStringPref(PREF_SINGLE_COLOR, ""))
           ? Services.prefs.getStringPref(PREF_SINGLE_COLOR)

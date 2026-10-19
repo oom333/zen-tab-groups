@@ -12,7 +12,7 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 - **Colored headers.** Each header takes the main color of the site's logo, a color you pick, or one color for every section.
 - **Collections.** Put several sites under one name, like ChatGPT, Claude and Gemini as "AI".
 - **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all (or **Unload** to free their memory).
-- **Your look.** Indent a section's tabs, draw a line along them, tint the header, the tabs or the whole section as one block (light, medium or strong), hide the header line, arrow or tab count. Text stays readable on any color.
+- **Your look.** Indent a section's tabs, draw a line along them, tint the header, the tabs or the whole section as one block (with a strength slider), hide the header line, arrow or tab count. Text stays readable on any color.
 - **Per space.** Keep a section to the spaces you choose, and group a site only once enough of its tabs are open.
 - **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: Browser, Social and Watch, plus **More ideas** with AI, Shopping, News, Work, Coding, Music, Gaming and Banking (100 US banks, card issuers, money apps and credit unions).
 - **Backups.** Save your sections and options to a file, and restore them later or on another computer.
@@ -67,7 +67,7 @@ Appearance:
 - **Colored headers:** on by default.
 - **Colors:** each section's own color (from its icon, or one you pick), or one color for all sections.
 - **Background:** a shade of the section's color behind its header, its tabs, both, or the whole section as one block.
-- **Background strength:** light (default), medium or strong.
+- **Background strength:** a slider from 4% to 60% color (10% by default).
 - **Keep text readable:** on by default. Text turns lighter or darker when it would be hard to read on a color.
 - **Indent tabs:** shifts each section's tabs to the right, like the tabs in a folder.
 - **Line along tabs:** a line in the section's color down the side of its tabs.

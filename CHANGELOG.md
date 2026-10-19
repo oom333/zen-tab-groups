@@ -24,7 +24,7 @@ with Zen 1.23.3b through Sine.
   the divider line switched off too.
 - **Background** can fill the **whole group**: one block behind the header
   and all of its tabs.
-- **Background strength**: light, medium or strong.
+- **Background strength**: a slider, from a hint of color to a strong fill.
 - **Colors**: each section's own, or **one color for all**.
 - **Keep text readable** (on by default): text turns lighter or darker when
   it would be hard to read on a section's color or background.

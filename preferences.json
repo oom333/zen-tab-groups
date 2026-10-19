@@ -60,24 +60,10 @@
   },
   {
     "property": "zen.sitegroups.background-strength",
-    "label": "Background strength",
-    "type": "dropdown",
-    "defaultValue": "light",
-    "placeholder": false,
-    "options": [
-      {
-        "label": "Light",
-        "value": "light"
-      },
-      {
-        "label": "Medium",
-        "value": "medium"
-      },
-      {
-        "label": "Strong",
-        "value": "strong"
-      }
-    ]
+    "label": "Background strength, in % (4 to 60, the settings page has a slider)",
+    "type": "string",
+    "defaultValue": "10",
+    "placeholder": "10"
   },
   {
     "property": "zen.sitegroups.readable-text",

@@ -441,8 +441,11 @@ function hueToHex(hue) {
 
 /* ---------- readable text (same as the mod's) ---------- */
 
-// Backgrounds' share of color: [header %, tabs %].
-const STRENGTHS = { light: [14, 10], medium: [26, 20], strong: [48, 40] };
+// Backgrounds' share of color: [header %, tabs %] (same as the mod's).
+const strengthPcts = value => {
+  const s = Math.min(Math.max(Math.round(Number(value)) || 10, 4), 60);
+  return [Math.round(s * 1.25), s];
+};
 
 // "#rrggbb", "rgb(a)(…)" or "color(srgb r g b / a)" -> [r, g, b], 0-255.
 function parseColor(value) {
@@ -478,7 +481,7 @@ function readableOn(fg, bg, min) {
 // Text colors for a section in the preview, against the preview's own
 // sidebar color.
 function sectionInk(color, text, base, background, strength) {
-  const [hPct, tPct] = STRENGTHS[strength] ?? STRENGTHS.light;
+  const [hPct, tPct] = strengthPcts(strength);
   const headerPct = background === "header" || background === "both" ? hPct : background === "group" ? tPct : 0;
   const tabPct = background === "tabs" || background === "both" || background === "group" ? tPct : 0;
   const tint = color ? parseColor(color) : text;
@@ -954,7 +957,7 @@ function renderPreview() {
   const tabCount = prefs.getString("zen.sitegroups.tab-count", "folded");
   const button = prefs.getString("zen.sitegroups.header-button", "clear");
   const background = prefs.getString("zen.sitegroups.background", "none");
-  const strength = prefs.getString("zen.sitegroups.background-strength", "light");
+  const strength = prefs.getString("zen.sitegroups.background-strength", "10");
   const single = prefs.getString("zen.sitegroups.color-mode", "section") === "single";
   const singleColor = prefs.getString("zen.sitegroups.single-color", "#4da3ff");
   const readable = prefs.getBool("zen.sitegroups.readable-text", true);
@@ -966,7 +969,7 @@ function renderPreview() {
   preview.classList.toggle("bg-header", background === "header" || background === "both");
   preview.classList.toggle("bg-tabs", background === "tabs" || background === "both");
   preview.classList.toggle("bg-group", background === "group");
-  const [hPct, tPct] = STRENGTHS[strength] ?? STRENGTHS.light;
+  const [hPct, tPct] = strengthPcts(strength);
   preview.style.setProperty("--hpct", hPct + "%");
   preview.style.setProperty("--tpct", tPct + "%");
   const base = parseColor(getComputedStyle(preview).backgroundColor);
@@ -1071,6 +1074,7 @@ const optionControls = () => [...document.querySelectorAll("[data-pref]")];
 const isSwitch = el => el.matches("input.switch");
 const isSelect = el => el.matches("select");
 const isColor = el => el.matches("input[type=color]");
+const isRange = el => el.matches("input[type=range]");
 
 function getOption(el) {
   return isSwitch(el)
@@ -1092,6 +1096,10 @@ function setOption(el, value) {
     if (/^#[0-9a-f]{6}$/i.test(value)) {
       prefs.setString(el.dataset.pref, value);
     }
+  } else if (isRange(el)) {
+    if (/^\d+$/.test(value)) {
+      prefs.setString(el.dataset.pref, value);
+    }
   } else if ([...el.querySelectorAll("button")].some(b => b.dataset.value === value)) {
     prefs.setString(el.dataset.pref, value);
   }
@@ -1104,6 +1112,9 @@ function showOptions() {
       el.checked = value;
     } else if (isSelect(el)) {
       el.value = value;
+    } else if (isRange(el)) {
+      el.value = strengthPcts(value)[1];
+      el.closest(".option").querySelector(".range-value").textContent = `${el.value}%`;
     } else if (isColor(el)) {
       el.value = /^#[0-9a-f]{6}$/i.test(value) ? value : el.dataset.default;
       // Only used with "One for all".
@@ -1257,9 +1268,10 @@ for (const select of document.querySelectorAll("select[data-pref]")) {
   });
 }
 
-for (const input of document.querySelectorAll("input[type=color][data-pref]")) {
+for (const input of document.querySelectorAll("input:is([type=color], [type=range])[data-pref]")) {
   input.addEventListener("input", () => {
     prefs.setString(input.dataset.pref, input.value);
+    showOptions();
     renderPreview();
   });
 }
