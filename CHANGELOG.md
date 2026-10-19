@@ -6,6 +6,23 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
+## [1.5.0]
+
+Brings in the 1.1.0–1.4.0 work from
+[oom333/zen-tab-groups#4](https://github.com/oom333/zen-tab-groups/pull/4)
+(thanks [@sinazadeh](https://github.com/sinazadeh)). Checked on Windows
+with Zen 1.23.3b through Sine.
+
+### Added
+
+- **More ideas**: a fold-out under the collection ideas with Shopping,
+  News, Work, Coding, Music, Gaming and Banking, each with bundled icons.
+
+### Fixed
+
+- The settings page now updates when an option is changed from Sine's
+  options box while it's open.
+
 ## [1.4.0] - 2026-10-17
 
 ### Added

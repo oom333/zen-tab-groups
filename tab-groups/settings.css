@@ -305,6 +305,25 @@ img.space-icon { -moz-context-properties: fill; fill: currentColor; }
 /* A long list gets the whole row. */
 .idea.expanded { grid-column: 1 / -1; }
 
+/* "More ideas": folded packs under the main three. */
+.more-ideas { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.more-ideas summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  list-style: none;
+  user-select: none;
+}
+.more-ideas summary::-webkit-details-marker { display: none; }
+.more-ideas summary::before { content: "▸"; color: var(--muted); transition: transform 0.15s; display: inline-block; }
+.more-ideas[open] summary::before { transform: rotate(90deg); }
+.more-ideas summary .muted { font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.more-ideas summary:hover .muted { color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .more-ideas summary::before { transition: none; } }
+
 .link-button {
   border: 0;
   background: none;

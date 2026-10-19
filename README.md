@@ -14,7 +14,7 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 - **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all (or **Unload** to free their memory).
 - **Your look.** Indent a section's tabs, draw a line along them, tint the header or tabs, hide the header line, arrow or tab count.
 - **Per space.** Keep a section to the spaces you choose, and group a site only once enough of its tabs are open.
-- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: AI, Social, Watch, and Banking (100 US banks, card issuers, money apps and credit unions).
+- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: AI, Social and Watch, plus **More ideas** with Shopping, News, Work, Coding, Music, Gaming and Banking (100 US banks, card issuers, money apps and credit unions).
 - **Backups.** Save your sections and options to a file, and restore them later or on another computer.
 
 ![Before and after](previews/before-after.png)

@@ -99,7 +99,14 @@ const IDEAS = [
   { name: "AI", color: "#a86bff", sites: ["chatgpt.com", "claude.ai", "gemini.google.com", "perplexity.ai"] },
   { name: "Social", color: "#4da3ff", sites: ["x.com", "instagram.com", "facebook.com", "tiktok.com"] },
   { name: "Watch", color: "#ff6bcb", sites: ["netflix.com", "twitch.tv", "disneyplus.com", "primevideo.com"] },
-  { name: "Banking", color: "#5ad17a", sites: BANKS },
+  // Under "More ideas" (folded).
+  { more: true, name: "Shopping", color: "#ffc53d", sites: ["amazon.com", "ebay.com", "etsy.com", "walmart.com", "target.com", "aliexpress.com", "temu.com", "bestbuy.com"] },
+  { more: true, name: "News", color: "#94a3b8", sites: ["nytimes.com", "bbc.com", "cnn.com", "theguardian.com", "reuters.com", "apnews.com", "washingtonpost.com", "npr.org"] },
+  { more: true, name: "Work", color: "#6f7dff", sites: ["docs.google.com", "mail.google.com", "notion.so", "slack.com", "trello.com", "figma.com", "outlook.office.com", "outlook.live.com", "teams.microsoft.com"] },
+  { more: true, name: "Coding", color: "#2ec4b6", sites: ["github.com", "stackoverflow.com", "gitlab.com", "developer.mozilla.org", "npmjs.com", "codepen.io", "vercel.com"] },
+  { more: true, name: "Music", color: "#ff5d5d", sites: ["spotify.com", "soundcloud.com", "music.apple.com", "music.youtube.com", "bandcamp.com", "tidal.com", "deezer.com"] },
+  { more: true, name: "Gaming", color: "#ff8a3d", sites: ["steampowered.com", "steamcommunity.com", "epicgames.com", "gog.com", "itch.io", "discord.com", "nexusmods.com"] },
+  { more: true, name: "Banking", color: "#5ad17a", sites: BANKS },
 ];
 
 // Idea cards list this many sites until expanded.
@@ -837,49 +844,50 @@ function renderList() {
 }
 
 function renderIdeas() {
-  document.getElementById("ideas").replaceChildren(
-    ...IDEAS.map(idea => {
-      // Already there: offer to fill in what's missing, if it's a collection.
-      const existing = ideaSection(idea);
-      const missing = existing?.kind === "collection" ? freeSites(idea).length : 0;
-      const label = !existing
-        ? "+ Add collection"
-        : missing
-          ? `+ Add ${missing} more site${missing === 1 ? "" : "s"}`
-          : "Added";
-      const expanded = expandedIdeas.has(idea.name);
-      const hidden = idea.sites.length - IDEA_PREVIEW;
-      return h(
-        "div",
-        { class: `idea${expanded ? " expanded" : ""}`, style: { "--idea-color": idea.color } },
-        h("div", { class: "idea-head" }, idea.name, h("span", { class: "line" })),
-        h(
-          "div",
-          { class: "idea-sites" },
-          (expanded ? idea.sites : idea.sites.slice(0, IDEA_PREVIEW)).map(site => h("span", {}, favicon(site), site)),
-          hidden > 0
-            ? h(
-                "button",
-                {
-                  type: "button",
-                  class: "link-button",
-                  onclick: () => {
-                    expanded ? expandedIdeas.delete(idea.name) : expandedIdeas.add(idea.name);
-                    renderIdeas();
-                  },
-                },
-                expanded ? "Show fewer" : `+${hidden} more`
-              )
-            : null
-        ),
-        ideaNotes.has(idea.name) ? h("p", { class: "muted small" }, ideaNotes.get(idea.name)) : null,
-        h(
-          "button",
-          { type: "button", class: "button", disabled: label === "Added", onclick: () => addIdea(idea) },
-          label
-        )
-      );
-    })
+  document.getElementById("ideas").replaceChildren(...IDEAS.filter(i => !i.more).map(ideaCard));
+  document.getElementById("more-ideas").replaceChildren(...IDEAS.filter(i => i.more).map(ideaCard));
+}
+
+function ideaCard(idea) {
+  // Already there: offer to fill in what's missing, if it's a collection.
+  const existing = ideaSection(idea);
+  const missing = existing?.kind === "collection" ? freeSites(idea).length : 0;
+  const label = !existing
+    ? "+ Add collection"
+    : missing
+      ? `+ Add ${missing} more site${missing === 1 ? "" : "s"}`
+      : "Added";
+  const expanded = expandedIdeas.has(idea.name);
+  const hidden = idea.sites.length - IDEA_PREVIEW;
+  return h(
+    "div",
+    { class: `idea${expanded ? " expanded" : ""}`, style: { "--idea-color": idea.color } },
+    h("div", { class: "idea-head" }, idea.name, h("span", { class: "line" })),
+    h(
+      "div",
+      { class: "idea-sites" },
+      (expanded ? idea.sites : idea.sites.slice(0, IDEA_PREVIEW)).map(site => h("span", {}, favicon(site), site)),
+      hidden > 0
+        ? h(
+            "button",
+            {
+              type: "button",
+              class: "link-button",
+              onclick: () => {
+                expanded ? expandedIdeas.delete(idea.name) : expandedIdeas.add(idea.name);
+                renderIdeas();
+              },
+            },
+            expanded ? "Show fewer" : `+${hidden} more`
+          )
+        : null
+    ),
+    ideaNotes.has(idea.name) ? h("p", { class: "muted small" }, ideaNotes.get(idea.name)) : null,
+    h(
+      "button",
+      { type: "button", class: "button", disabled: label === "Added", onclick: () => addIdea(idea) },
+      label
+    )
   );
 }
 
@@ -1174,6 +1182,10 @@ prefs.observe(name => {
   if (name === PREF_SECTIONS && prefs.getString(PREF_SECTIONS, "[]") !== lastSaved) {
     sections = load();
     lastSaved = JSON.stringify(sections);
+    renderSoon();
+  } else if (optionControls().some(el => el.dataset.pref === name)) {
+    // Changed from Sine's options box (or another settings tab).
+    showOptions();
     renderSoon();
   }
 });
