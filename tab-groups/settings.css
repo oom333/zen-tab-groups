@@ -175,6 +175,39 @@ button, input { font: inherit; color: inherit; }
 }
 .color-button:hover { border-color: var(--muted); }
 
+.spaces-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 150px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spaces-button:hover { border-color: var(--muted); }
+.space-icon { width: 14px; height: 14px; flex: none; display: inline-grid; place-items: center; font-size: 12px; line-height: 1; }
+img.space-icon { -moz-context-properties: fill; fill: currentColor; }
+
+.spaces-popover { gap: 4px; width: 220px; }
+.space-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.space-option:hover { background: var(--sidebar-tab); }
+.space-option input { margin: 0; accent-color: var(--accent); }
+
 .swatch {
   width: 14px;
   height: 14px;
@@ -209,6 +242,8 @@ button, input { font: inherit; color: inherit; }
   line-height: 1;
 }
 .chip button:hover { color: var(--danger); background: var(--sidebar-tab); }
+.chip.more { padding: 3px 8px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.chip.more:hover { color: var(--text); border-color: var(--muted); }
 
 .site-input {
   border: 1px dashed var(--border);
@@ -267,6 +302,24 @@ button, input { font: inherit; color: inherit; }
 .idea-sites span { display: inline-flex; align-items: center; gap: 4px; }
 .idea-sites img { width: 12px; height: 12px; border-radius: 3px; }
 .idea .button { align-self: flex-start; padding: 4px 10px; font-size: 12px; margin-top: auto; }
+/* A long list gets the whole row. */
+.idea.expanded { grid-column: 1 / -1; }
+
+.link-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.link-button:hover { text-decoration: underline; }
+
+/* ---------- backup ---------- */
+
+.backup-note { margin-top: 10px; overflow-wrap: anywhere; }
+.backup-note.error { color: var(--danger); }
 
 /* ---------- options ---------- */
 
@@ -346,7 +399,35 @@ div.option { cursor: default; }
 .p-header.colored .chevron { color: var(--c); }
 .p-header.arrow-right .label { order: 1; }
 .p-header.arrow-right .chevron { order: 2; }
-.p-header.arrow-right .line { order: 3; }
+.p-header.arrow-right .count { order: 3; }
+.p-header.arrow-right .line { order: 4; }
+.p-header.arrow-right .action { order: 5; }
+.p-header.arrow-hidden .chevron { display: none !important; }
+.p-header .count { opacity: 0.45; font-weight: 500; }
+.p-header .action { display: none; font-weight: 500; opacity: 0.6; }
+.p-header:not(.empty):hover .action { display: block; }
+.preview.no-header-line .p-header .line { visibility: hidden; }
+.preview.bg-header .p-header:not(.empty) {
+  background: color-mix(in srgb, var(--c, currentColor) 14%, transparent);
+  border-radius: 6px;
+}
+
+/* A section's tabs: indented, with a line along them, tinted. */
+.p-group { display: grid; gap: 2px; position: relative; }
+.preview.group-line .p-group { padding-left: 10px; }
+.preview.indent .p-group { padding-left: 16px; }
+.preview.group-line .p-group::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--c, var(--sidebar-line));
+  opacity: 0.75;
+}
+.preview.bg-tabs .p-group .p-tab:not(.active) { background: color-mix(in srgb, var(--c, currentColor) 10%, transparent); }
 
 .p-tab {
   display: flex;
@@ -446,6 +527,32 @@ div.option { cursor: default; }
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 .hue::-moz-range-track { background: transparent; }
+
+/* ---------- dropdowns ---------- */
+
+.select, .min-tabs select {
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.select:hover, .min-tabs select:hover { border-color: var(--muted); }
+
+.min-tabs {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.min-tabs select { background: var(--card); font-weight: 500; padding: 3px 6px; }
 
 /* ---------- segmented control ---------- */
 
