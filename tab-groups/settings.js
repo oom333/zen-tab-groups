@@ -96,16 +96,19 @@ const BANKS = [
 ];
 
 const IDEAS = [
-  { name: "AI", color: "#a86bff", sites: ["chatgpt.com", "claude.ai", "gemini.google.com", "perplexity.ai"] },
+  // Browsers' sites and add-on stores (Chrome's and Edge's own pages live on
+  // google.com / microsoft.com, which would catch far more than browsers).
+  { name: "Browser", color: "#ff8a3d", sites: ["zen-browser.app", "mozilla.org", "firefox.com", "brave.com", "vivaldi.com", "opera.com", "arc.net", "chromewebstore.google.com", "microsoftedge.microsoft.com"] },
   { name: "Social", color: "#4da3ff", sites: ["x.com", "instagram.com", "facebook.com", "tiktok.com"] },
   { name: "Watch", color: "#ff6bcb", sites: ["netflix.com", "twitch.tv", "disneyplus.com", "primevideo.com"] },
   // Under "More ideas" (folded).
+  { more: true, name: "AI", color: "#a86bff", sites: ["chatgpt.com", "claude.ai", "gemini.google.com", "perplexity.ai"] },
   { more: true, name: "Shopping", color: "#ffc53d", sites: ["amazon.com", "ebay.com", "etsy.com", "walmart.com", "target.com", "aliexpress.com", "temu.com", "bestbuy.com"] },
   { more: true, name: "News", color: "#94a3b8", sites: ["nytimes.com", "bbc.com", "cnn.com", "theguardian.com", "reuters.com", "apnews.com", "washingtonpost.com", "npr.org"] },
   { more: true, name: "Work", color: "#6f7dff", sites: ["docs.google.com", "mail.google.com", "notion.so", "slack.com", "trello.com", "figma.com", "outlook.office.com", "outlook.live.com", "teams.microsoft.com"] },
   { more: true, name: "Coding", color: "#2ec4b6", sites: ["github.com", "stackoverflow.com", "gitlab.com", "developer.mozilla.org", "npmjs.com", "codepen.io", "vercel.com"] },
   { more: true, name: "Music", color: "#ff5d5d", sites: ["spotify.com", "soundcloud.com", "music.apple.com", "music.youtube.com", "bandcamp.com", "tidal.com", "deezer.com"] },
-  { more: true, name: "Gaming", color: "#ff8a3d", sites: ["steampowered.com", "steamcommunity.com", "epicgames.com", "gog.com", "itch.io", "discord.com", "nexusmods.com"] },
+  { more: true, name: "Gaming", color: "#ff8fa3", sites: ["steampowered.com", "steamcommunity.com", "epicgames.com", "gog.com", "itch.io", "discord.com", "nexusmods.com"] },
   { more: true, name: "Banking", color: "#5ad17a", sites: BANKS },
 ];
 
@@ -434,6 +437,58 @@ function hueToHex(hue) {
     return Math.round(c * 255).toString(16).padStart(2, "0");
   };
   return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/* ---------- readable text (same as the mod's) ---------- */
+
+// Backgrounds' share of color: [header %, tabs %].
+const STRENGTHS = { light: [14, 10], medium: [26, 20], strong: [48, 40] };
+
+// "#rrggbb", "rgb(a)(…)" or "color(srgb r g b / a)" -> [r, g, b], 0-255.
+function parseColor(value) {
+  if (/^#[0-9a-f]{6}$/i.test(value)) {
+    return [1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16));
+  }
+  const nums = (value.match(/[\d.]+/g) ?? []).map(Number).slice(0, 3);
+  return value.startsWith("color(") ? nums.map(v => v * 255) : nums;
+}
+const mixRgb = (a, b, share) => a.map((v, i) => v * share + b[i] * (1 - share));
+function luminance(rgb) {
+  const [r, g, b] = rgb.map(v => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+function readableOn(fg, bg, min) {
+  if (contrast(fg, bg) >= min) {
+    return null;
+  }
+  const toward = luminance(bg) > 0.18 ? [0, 0, 0] : [255, 255, 255];
+  let out = fg;
+  for (let share = 0.1; share < 1.05 && contrast(out, bg) < min; share += 0.1) {
+    out = mixRgb(toward, fg, Math.min(share, 1));
+  }
+  return "#" + out.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
+// Text colors for a section in the preview, against the preview's own
+// sidebar color.
+function sectionInk(color, text, base, background, strength) {
+  const [hPct, tPct] = STRENGTHS[strength] ?? STRENGTHS.light;
+  const headerPct = background === "header" || background === "both" ? hPct : background === "group" ? tPct : 0;
+  const tabPct = background === "tabs" || background === "both" || background === "group" ? tPct : 0;
+  const tint = color ? parseColor(color) : text;
+  const headerBg = mixRgb(tint, base, headerPct / 100);
+  return {
+    header: headerPct ? readableOn(text, headerBg, 4.5) : null,
+    // Names are bold, so plain headers get the lighter bar for large text.
+    label: readableOn(tint, headerBg, headerPct ? 4.5 : 3),
+    tabs: tabPct ? readableOn(text, mixRgb(tint, base, tabPct / 100), 4.5) : null,
+  };
 }
 
 const rowFor = section => [...document.querySelectorAll(".section")].find(li => li.section === section);
@@ -899,26 +954,44 @@ function renderPreview() {
   const tabCount = prefs.getString("zen.sitegroups.tab-count", "folded");
   const button = prefs.getString("zen.sitegroups.header-button", "clear");
   const background = prefs.getString("zen.sitegroups.background", "none");
+  const strength = prefs.getString("zen.sitegroups.background-strength", "light");
+  const single = prefs.getString("zen.sitegroups.color-mode", "section") === "single";
+  const singleColor = prefs.getString("zen.sitegroups.single-color", "#4da3ff");
+  const readable = prefs.getBool("zen.sitegroups.readable-text", true);
+  const clearAt = prefs.getString("zen.sitegroups.clear-button", "top");
   const preview = document.getElementById("preview");
   preview.classList.toggle("indent", prefs.getBool("zen.sitegroups.indent-tabs", false));
   preview.classList.toggle("group-line", prefs.getBool("zen.sitegroups.group-line", false));
   preview.classList.toggle("no-header-line", !prefs.getBool("zen.sitegroups.header-line", true));
   preview.classList.toggle("bg-header", background === "header" || background === "both");
   preview.classList.toggle("bg-tabs", background === "tabs" || background === "both");
-  const rows = [h("div", { class: "p-new" }, "+  New Tab")];
+  preview.classList.toggle("bg-group", background === "group");
+  const [hPct, tPct] = STRENGTHS[strength] ?? STRENGTHS.light;
+  preview.style.setProperty("--hpct", hPct + "%");
+  preview.style.setProperty("--tpct", tPct + "%");
+  const base = parseColor(getComputedStyle(preview).backgroundColor);
+  const text = parseColor(getComputedStyle(preview).color);
+  const rows = [];
+  if (clearAt !== "divider") {
+    rows.push(h("div", { class: "p-top" }, h("span", { class: "line" }), h("span", {}, "Clear")));
+  }
+  rows.push(h("div", { class: "p-new" }, "+  New Tab"));
   let first = true;
+  let shown = 0;
   for (const section of sections) {
     if (!section.sites.length && !keepEmpty) {
       continue;
     }
-    const color = colored ? sectionColor(section) : null;
+    shown++;
+    const color = colored ? (single ? singleColor : sectionColor(section)) : null;
+    const ink = readable ? sectionInk(color, text, base, background, strength) : {};
     const sites = section.sites.slice(0, section.kind === "site" ? 1 : 3);
     rows.push(
       h(
         "div",
         {
           class: `p-header${color ? " colored" : ""}${sites.length ? "" : " empty"}${arrow === "right" ? " arrow-right" : ""}${arrow === "hidden" ? " arrow-hidden" : ""}`,
-          style: { "--c": color },
+          style: { "--c": color, "--fg": ink.header, "--label": ink.label },
           title: "Hover to see the collapse arrow",
         },
         h("span", { class: "chevron" }),
@@ -932,7 +1005,7 @@ function renderPreview() {
       rows.push(
         h(
           "div",
-          { class: "p-group", style: { "--c": color } },
+          { class: "p-group", style: { "--c": color, "--fg": ink.tabs } },
           sites.map(site => {
             const title = section.kind === "site" ? displayName(section) : defaultName(site);
             const tab = h("div", { class: `p-tab${first ? " active" : ""}` }, favicon(site), h("span", {}, title));
@@ -943,8 +1016,15 @@ function renderPreview() {
       );
     }
   }
-  if (rows.length > 1 && divider) {
-    rows.push(h("div", { class: "p-rest" }));
+  if (shown && (divider || clearAt !== "top")) {
+    rows.push(
+      h(
+        "div",
+        { class: `p-rest${divider ? "" : " no-line"}` },
+        h("span", { class: "line" }),
+        clearAt !== "top" ? h("span", {}, "Clear") : null
+      )
+    );
   }
   rows.push(
     h("div", { class: "p-tab other" }, h("span", { class: "p-dot" }), h("span", {}, "Other tab")),
@@ -990,6 +1070,7 @@ function renderSoon() {
 const optionControls = () => [...document.querySelectorAll("[data-pref]")];
 const isSwitch = el => el.matches("input.switch");
 const isSelect = el => el.matches("select");
+const isColor = el => el.matches("input[type=color]");
 
 function getOption(el) {
   return isSwitch(el)
@@ -1007,6 +1088,10 @@ function setOption(el, value) {
     if ([...el.options].some(o => o.value === value)) {
       prefs.setString(el.dataset.pref, value);
     }
+  } else if (isColor(el)) {
+    if (/^#[0-9a-f]{6}$/i.test(value)) {
+      prefs.setString(el.dataset.pref, value);
+    }
   } else if ([...el.querySelectorAll("button")].some(b => b.dataset.value === value)) {
     prefs.setString(el.dataset.pref, value);
   }
@@ -1019,6 +1104,10 @@ function showOptions() {
       el.checked = value;
     } else if (isSelect(el)) {
       el.value = value;
+    } else if (isColor(el)) {
+      el.value = /^#[0-9a-f]{6}$/i.test(value) ? value : el.dataset.default;
+      // Only used with "One for all".
+      el.disabled = prefs.getString("zen.sitegroups.color-mode", "section") !== "single";
     } else {
       el.querySelectorAll("button").forEach(b => b.classList.toggle("selected", b.dataset.value === value));
     }
@@ -1165,6 +1254,13 @@ for (const select of document.querySelectorAll("select[data-pref]")) {
   select.addEventListener("change", () => {
     prefs.setString(select.dataset.pref, select.value);
     render();
+  });
+}
+
+for (const input of document.querySelectorAll("input[type=color][data-pref]")) {
+  input.addEventListener("input", () => {
+    prefs.setString(input.dataset.pref, input.value);
+    renderPreview();
   });
 }
 

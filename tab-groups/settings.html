@@ -54,7 +54,7 @@
           <p class="muted">Starting points you can add with one click and edit afterwards. Sites already in another section are skipped.</p>
           <div id="ideas" class="ideas"></div>
           <details class="more-ideas">
-            <summary>More ideas <span class="muted">Shopping, News, Work, Coding, Music, Gaming, Banking</span></summary>
+            <summary>More ideas <span class="muted">AI, Shopping, News, Work, Coding, Music, Gaming, Banking</span></summary>
             <div id="more-ideas" class="ideas"></div>
           </details>
         </section>
@@ -71,16 +71,48 @@
             </label>
             <div class="option">
               <span class="option-text">
+                <b>Colors</b>
+                <span class="muted">Each section's own color (from its icon, or one you pick for it in the list above), or one color for every section.</span>
+              </span>
+              <div class="option-controls">
+                <div class="segmented" data-pref="zen.sitegroups.color-mode" data-default="section" role="group" aria-label="Colors">
+                  <button type="button" data-value="section">Each section's own</button>
+                  <button type="button" data-value="single">One for all</button>
+                </div>
+                <input type="color" class="color-input" data-pref="zen.sitegroups.single-color" data-default="#4da3ff" aria-label="The one color for all sections">
+              </div>
+            </div>
+            <div class="option">
+              <span class="option-text">
                 <b>Background</b>
-                <span class="muted">Fill the header, the section's tabs, or both with a light shade of its color.</span>
+                <span class="muted">Fill the header, the section's tabs, both, or the whole section as one block, in a shade of its color.</span>
               </span>
               <div class="segmented" data-pref="zen.sitegroups.background" data-default="none" role="group" aria-label="Background">
                 <button type="button" data-value="none">None</button>
                 <button type="button" data-value="header">Header</button>
                 <button type="button" data-value="tabs">Tabs</button>
                 <button type="button" data-value="both">Both</button>
+                <button type="button" data-value="group">Whole group</button>
               </div>
             </div>
+            <div class="option">
+              <span class="option-text">
+                <b>Background strength</b>
+                <span class="muted">How much color the backgrounds use.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.background-strength" data-default="light" role="group" aria-label="Background strength">
+                <button type="button" data-value="light">Light</button>
+                <button type="button" data-value="medium">Medium</button>
+                <button type="button" data-value="strong">Strong</button>
+              </div>
+            </div>
+            <label class="option">
+              <span class="option-text">
+                <b>Keep text readable</b>
+                <span class="muted">Make text lighter or darker when it would be hard to read on a section's color or background, like dark text on a strong white.</span>
+              </span>
+              <input type="checkbox" class="switch" data-pref="zen.sitegroups.readable-text" data-default="true">
+            </label>
             <label class="option">
               <span class="option-text">
                 <b>Indent tabs</b>
@@ -131,6 +163,17 @@
               </span>
               <input type="checkbox" class="switch" data-pref="zen.sitegroups.rest-divider" data-default="true">
             </label>
+            <div class="option">
+              <span class="option-text">
+                <b>Zen's Clear button</b>
+                <span class="muted">At the top it closes every unpinned tab, as usual. On the divider below your sections it closes only the tabs below it, the ones not in a section. It works with the divider line switched off too.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.clear-button" data-default="top" role="group" aria-label="Zen's Clear button">
+                <button type="button" data-value="top">Top</button>
+                <button type="button" data-value="divider">On the divider</button>
+                <button type="button" data-value="both">Both</button>
+              </div>
+            </div>
           </div>
         </section>
 

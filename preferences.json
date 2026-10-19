@@ -6,6 +6,30 @@
     "defaultValue": true
   },
   {
+    "property": "zen.sitegroups.color-mode",
+    "label": "Colors",
+    "type": "dropdown",
+    "defaultValue": "section",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Each section's own (icon or picked)",
+        "value": "section"
+      },
+      {
+        "label": "One color for all",
+        "value": "single"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.single-color",
+    "label": "The one color for all (like #4da3ff)",
+    "type": "string",
+    "defaultValue": "#4da3ff",
+    "placeholder": "#4da3ff"
+  },
+  {
     "property": "zen.sitegroups.background",
     "label": "Background in the section's color",
     "type": "dropdown",
@@ -27,8 +51,39 @@
       {
         "label": "Header and tabs",
         "value": "both"
+      },
+      {
+        "label": "Whole group (one block)",
+        "value": "group"
       }
     ]
+  },
+  {
+    "property": "zen.sitegroups.background-strength",
+    "label": "Background strength",
+    "type": "dropdown",
+    "defaultValue": "light",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Light",
+        "value": "light"
+      },
+      {
+        "label": "Medium",
+        "value": "medium"
+      },
+      {
+        "label": "Strong",
+        "value": "strong"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.readable-text",
+    "label": "Keep text readable on colors",
+    "type": "checkbox",
+    "defaultValue": true
   },
   {
     "property": "zen.sitegroups.indent-tabs",
@@ -95,6 +150,27 @@
     "label": "Divider between sections and other tabs",
     "type": "checkbox",
     "defaultValue": true
+  },
+  {
+    "property": "zen.sitegroups.clear-button",
+    "label": "Zen's Clear button",
+    "type": "dropdown",
+    "defaultValue": "top",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Top (Zen's usual spot)",
+        "value": "top"
+      },
+      {
+        "label": "On the divider below sections",
+        "value": "divider"
+      },
+      {
+        "label": "Both",
+        "value": "both"
+      }
+    ]
   },
   {
     "property": "zen.sitegroups.min-tabs",

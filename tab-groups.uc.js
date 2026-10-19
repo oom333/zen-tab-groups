@@ -17,9 +17,10 @@
   const PREF_BRANCH = "zen.sitegroups.";
   const PREF_SECTIONS = "zen.sitegroups.sections";
   const PREF_COLLAPSED = "zen.sitegroups.collapsed";
-  // "-v2": colors picked by the newer method; the old cache is dropped.
-  const PREF_ICON_COLORS = "zen.sitegroups.icon-colors-v2";
-  const PREF_OLD_ICON_COLORS = "zen.sitegroups.icon-colors";
+  // "-v3": earlier caches could hold "no color" from Zen's placeholder icon
+  // on a fresh profile; old caches are dropped.
+  const PREF_ICON_COLORS = "zen.sitegroups.icon-colors-v3";
+  const OLD_ICON_COLOR_PREFS = ["zen.sitegroups.icon-colors", "zen.sitegroups.icon-colors-v2"];
   const PREF_REST_DIVIDER = "zen.sitegroups.rest-divider";
   const PREF_KEEP_EMPTY = "zen.sitegroups.keep-empty-headers";
   const PREF_COLORED = "zen.sitegroups.colored-headers";
@@ -30,7 +31,16 @@
   const PREF_HEADER_BUTTON = "zen.sitegroups.header-button"; // "clear" | "unload" | "none"
   const PREF_INDENT = "zen.sitegroups.indent-tabs";
   const PREF_GROUP_LINE = "zen.sitegroups.group-line";
-  const PREF_BACKGROUND = "zen.sitegroups.background"; // "none" | "header" | "tabs" | "both"
+  const PREF_BACKGROUND = "zen.sitegroups.background"; // "none" | "header" | "tabs" | "both" | "group"
+  const PREF_BG_STRENGTH = "zen.sitegroups.background-strength"; // "light" | "medium" | "strong"
+  const PREF_COLOR_MODE = "zen.sitegroups.color-mode"; // "section" | "single"
+  const PREF_SINGLE_COLOR = "zen.sitegroups.single-color"; // "#rrggbb", with color-mode "single"
+  const PREF_READABLE = "zen.sitegroups.readable-text";
+  // Zen's "Clear" (close unpinned tabs): above the tabs as usual, on the
+  // divider below the sections (closing only the tabs below it), or both.
+  const PREF_CLEAR_BUTTON = "zen.sitegroups.clear-button"; // "top" | "divider" | "both"
+  // How much of the color backgrounds use: [header %, tabs %].
+  const STRENGTHS = { light: [14, 10], medium: [26, 20], strong: [48, 40] };
   // A section only forms once this many of its tabs are open in a space,
   // unless it sets its own number ("1" to "10"; a string, so Sine's options
   // box can offer it as a list).
@@ -71,14 +81,14 @@
       cursor: default;
     }
     .zsg-header:hover { background: var(--tab-hover-background-color, rgba(128, 128, 128, 0.12)); }
+    /* Drawn as a mask in the text's color (as an image it came out black). */
     .zsg-chevron {
       display: none;
       width: 16px;
       height: 16px;
-      padding: 1px;
-      list-style-image: url("chrome://browser/skin/zen-icons/arrow-right.svg");
-      -moz-context-properties: fill, fill-opacity;
-      fill: currentColor;
+      background-color: currentColor;
+      mask: url("chrome://browser/skin/zen-icons/arrow-right.svg") center / 14px 14px no-repeat;
+      opacity: 0.75;
       transform: rotate(90deg);
       transition: transform 0.1s;
     }
@@ -98,9 +108,12 @@
     .zsg-header:not([zsg-closed]) .zsg-count { display: none; }
     .zsg-line { flex: 1; height: 1px; background: var(--zsg-line); }
     .zsg-header[zsg-colored] {
-      .zsg-label { color: var(--zsg-color); opacity: 1; }
+      .zsg-label, .zsg-chevron { color: var(--zsg-color); opacity: 1; }
       .zsg-line { background: color-mix(in srgb, var(--zsg-color) 55%, transparent); }
     }
+    /* Readable text: colors worked out against the header's background. */
+    .zsg-header[zsg-fg] { color: var(--zsg-fg); }
+    .zsg-header[zsg-label] :is(.zsg-label, .zsg-chevron) { color: var(--zsg-label); opacity: 1; }
     .zsg-header[zsg-empty] { opacity: 0.55; }
     .zsg-clear {
       display: none;
@@ -110,7 +123,14 @@
     }
     .zsg-clear:hover { opacity: 1; }
     .zsg-header:not([zsg-empty]):hover .zsg-clear { display: flex; }
-    .zsg-rest { min-height: 12px; }
+    .zsg-rest { min-height: 12px; gap: 6px; }
+    .zsg-rest[zsg-no-line] .zsg-line { visibility: hidden; }
+    /* Zen's Clear, on the divider (closes the tabs below it). */
+    .zsg-rest-clear { display: none; margin: 0; font-size: small; font-weight: 500; opacity: 0.5; cursor: default; }
+    .zsg-rest-clear:hover { opacity: 1; }
+    .zsg-rest[zsg-clear] { min-height: 22px; }
+    .zsg-rest[zsg-clear] .zsg-rest-clear { display: flex; }
+    zen-workspace[zsg-clear-moved] .zen-workspace-close-unpinned-tabs-button { display: none !important; }
 
     /* Header options: tab count, arrow, line and button. */
     :root[zsg-tab-count="always"] .zsg-header:not([zsg-empty]) .zsg-count { display: flex; }
@@ -141,24 +161,51 @@
     }
     :root[zsg-group-line] tab[zsg-group][zsg-first]::after { inset-block-start: 4px; }
     :root[zsg-group-line] tab[zsg-group][zsg-last]::after { inset-block-end: 4px; }
+    /* Backgrounds. --zsg-bg is the section's color (or the text color for
+       an uncolored section), --zsg-hpct / --zsg-tpct the strength. */
+    .zsg-header, tab[zsg-group] { --zsg-bg: var(--zsg-color, currentColor); }
     :root[zsg-background="header"],
     :root[zsg-background="both"] {
-      .zsg-header:not([zsg-empty]) { background: color-mix(in srgb, var(--zsg-color, currentColor) 14%, transparent); }
-      .zsg-header:not([zsg-empty]):hover { background: color-mix(in srgb, var(--zsg-color, currentColor) 22%, transparent); }
+      .zsg-header:not([zsg-empty]) { background: color-mix(in srgb, var(--zsg-bg) var(--zsg-hpct), transparent); }
+      .zsg-header:not([zsg-empty]):hover { background: color-mix(in srgb, var(--zsg-bg) calc(var(--zsg-hpct) + 8%), transparent); }
     }
     :root[zsg-background="tabs"],
     :root[zsg-background="both"] {
       tab[zsg-group]:not([visuallyselected], [multiselected]) > .tab-stack > .tab-background {
-        background-color: color-mix(in srgb, var(--zsg-color, currentColor) 10%, transparent) !important;
+        background-color: color-mix(in srgb, var(--zsg-bg) var(--zsg-tpct), transparent) !important;
       }
       tab[zsg-group]:not([visuallyselected], [multiselected]):hover > .tab-stack > .tab-background {
-        background-color: color-mix(in srgb, var(--zsg-color, currentColor) 18%, transparent) !important;
+        background-color: color-mix(in srgb, var(--zsg-bg) calc(var(--zsg-tpct) + 8%), transparent) !important;
       }
     }
+    /* Whole group: one block behind the header and all of its tabs. */
+    :root[zsg-background="group"][zen-sidebar-expanded="true"] {
+      .zsg-header:not([zsg-empty]) {
+        margin: 6px 2px 0;
+        padding-inline: 10px 8px;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--zsg-bg) var(--zsg-tpct), transparent);
+      }
+      .zsg-header:not([zsg-empty]):hover { background: color-mix(in srgb, var(--zsg-bg) calc(var(--zsg-tpct) + 8%), transparent); }
+      .zsg-header:not([zsg-empty], [zsg-closed]) { border-end-start-radius: 0; border-end-end-radius: 0; }
+      tab[zsg-group]:not([zen-glance-tab]) { position: relative; }
+      tab[zsg-group]:not([zen-glance-tab])::before {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        inset-inline: 2px;
+        background: color-mix(in srgb, var(--zsg-bg) var(--zsg-tpct), transparent);
+        pointer-events: none;
+        z-index: -1;
+      }
+      tab[zsg-group][zsg-last]::before { border-end-start-radius: 12px; border-end-end-radius: 12px; }
+    }
+    /* Readable text on tinted tabs (not the selected one: Zen's own look). */
+    tab[zsg-fg]:not([visuallyselected], [multiselected]) :is(.tab-label, .tab-close-button) { color: var(--zsg-fg) !important; }
     :root { --zsg-neutral: light-dark(rgba(0, 0, 0, 0.25), rgba(255, 255, 255, 0.25)); }
 
     :root:not([zen-sidebar-expanded="true"]) {
-      .zsg-chevron, .zsg-label, .zsg-count, .zsg-clear { display: none !important; }
+      .zsg-chevron, .zsg-label, .zsg-count, .zsg-clear, .zsg-rest-clear { display: none !important; }
       .zsg-header { min-height: 12px; }
     }
 
@@ -310,6 +357,70 @@
     return `#${hex(r)}${hex(g)}${hex(b)}`;
   }
 
+  /* ---------- readable text ---------- */
+
+  // "#rrggbb", "rgb(a)(…)" or "color(srgb r g b / a)" -> [r, g, b], 0-255.
+  function parseColor(value) {
+    if (/^#[0-9a-f]{6}$/i.test(value)) {
+      return [1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16));
+    }
+    const nums = (value.match(/[\d.]+/g) ?? []).map(Number).slice(0, 3);
+    return value.startsWith("color(") ? nums.map(v => v * 255) : nums;
+  }
+  const mixRgb = (a, b, share) => a.map((v, i) => v * share + b[i] * (1 - share));
+  function luminance(rgb) {
+    const [r, g, b] = rgb.map(v => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  // `fg`, or `fg` taken toward black or white until it reads on `bg`
+  // (null: it already does). Same as the settings page's.
+  function readableOn(fg, bg, min) {
+    if (contrast(fg, bg) >= min) {
+      return null;
+    }
+    const toward = luminance(bg) > 0.18 ? [0, 0, 0] : [255, 255, 255];
+    let out = fg;
+    for (let share = 0.1; share < 1.05 && contrast(out, bg) < min; share += 0.1) {
+      out = mixRgb(toward, fg, Math.min(share, 1));
+    }
+    return "#" + out.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+  }
+
+  // Text colors for a section that keep it readable on its backgrounds.
+  // The sidebar's own color isn't readable from CSS (themes use gradients),
+  // so it's taken as near-black or near-white, the opposite of its text.
+  function sectionInk(color, text, opts) {
+    const base = luminance(text) > 0.3 ? [32, 32, 36] : [245, 245, 247];
+    const [hPct, tPct] = STRENGTHS[opts.strength];
+    const bg = opts.background;
+    const headerPct = bg === "header" || bg === "both" ? hPct : bg === "group" ? tPct : 0;
+    const tabPct = bg === "tabs" || bg === "both" || bg === "group" ? tPct : 0;
+    const tint = color ? parseColor(color) : text;
+    const headerBg = mixRgb(tint, base, headerPct / 100);
+    return {
+      header: headerPct ? readableOn(text, headerBg, 4.5) : null,
+      // Names are bold, so plain headers get the lighter bar for large text.
+      label: readableOn(tint, headerBg, headerPct ? 4.5 : 3),
+      tabs: tabPct ? readableOn(text, mixRgb(tint, base, tabPct / 100), 4.5) : null,
+    };
+  }
+
+  function setInk(el, attr, prop, value) {
+    el.toggleAttribute(attr, !!value);
+    if (value) {
+      el.style.setProperty(prop, value);
+    } else {
+      el.style.removeProperty(prop);
+    }
+  }
+
   // Header color from a site icon:
   // - the most common color wins (YouTube: the red, not red mixed with white)
   // - white, grey and near-black pixels never count, so a half white, half
@@ -419,6 +530,15 @@
   const cachedIconColor = site => readJSON(PREF_ICON_COLORS, {})[site];
 
   const colorJobs = new Map();
+  // Sites with no trustworthy icon yet; retried once a tab's icon arrives.
+  const unsureSites = new Set();
+  function retryUnsureColors() {
+    for (const site of unsureSites) {
+      colorJobs.delete(site);
+    }
+    unsureSites.clear();
+    schedule();
+  }
   function iconColor(site) {
     const cached = cachedIconColor(site);
     if (cached !== undefined) {
@@ -427,22 +547,28 @@
     if (!colorJobs.has(site)) {
       const job = (async () => {
         let color = null;
-        let loadedAny = false;
+        let sure = false; // only a real icon's answer is cached
         for (const src of iconCandidates(site)) {
           const img = await loadImage(src);
           if (!img) {
             continue;
           }
-          loadedAny = true;
           try {
             color = dominantColor(img);
           } catch {}
-          break;
+          // No color from "page-icon:" may just be Zen's grey placeholder (a
+          // site this profile hasn't visited yet), so try the next icon.
+          if (color || !src.startsWith("page-icon:")) {
+            sure = true;
+            break;
+          }
         }
-        if (loadedAny) {
+        if (sure) {
           writeJSON(PREF_ICON_COLORS, { ...readJSON(PREF_ICON_COLORS, {}), [site]: color ?? "" });
+          colorJobs.delete(site);
+        } else {
+          unsureSites.add(site); // the job stays, so it isn't rerun each layout
         }
-        colorJobs.delete(site);
         return color;
       })();
       colorJobs.set(site, job);
@@ -596,7 +722,20 @@
     rest.className = "zsg-rest";
     const line = document.createXULElement("hbox");
     line.className = "zsg-line";
-    rest.append(line);
+    const clear = document.createXULElement("label");
+    clear.className = "zsg-rest-clear";
+    clear.setAttribute("value", "Clear");
+    clear.setAttribute("tooltiptext", "Close the tabs below (the ones not in a section)");
+    rest.append(line, clear);
+    for (const type of ["mousedown", "dblclick", "auxclick"]) {
+      rest.addEventListener(type, e => e.stopPropagation());
+    }
+    rest.addEventListener("click", e => {
+      e.stopPropagation();
+      if (e.button === 0 && e.target === clear) {
+        closeRest(rest);
+      }
+    });
     return rest;
   }
 
@@ -616,7 +755,16 @@
     }
   }
 
-  function updateHeader(header, section, tabs, opts) {
+  // A section's color: its own (picked or from its icon), the one color
+  // for all, or null with colors off.
+  function colorFor(section, opts) {
+    if (!opts.colored) {
+      return null;
+    }
+    return opts.colorMode === "single" ? opts.singleColor : sectionColor(section);
+  }
+
+  function updateHeader(header, section, tabs, opts, look) {
     const label = displayName(section);
     header.querySelector(".zsg-label").setAttribute("value", label);
     header.querySelector(".zsg-count").setAttribute("value", String(tabs.length));
@@ -630,9 +778,10 @@
     const button = header.querySelector(".zsg-clear");
     button.setAttribute("value", text);
     button.setAttribute("tooltiptext", tooltip);
-    const color = opts.colored ? sectionColor(section) : null;
-    header.toggleAttribute("zsg-colored", !!color);
-    setColor(header, color);
+    header.toggleAttribute("zsg-colored", !!look.color);
+    setColor(header, look.color);
+    setInk(header, "zsg-fg", "--zsg-fg", look.ink?.header);
+    setInk(header, "zsg-label", "--zsg-label", look.ink?.label);
   }
 
   function ungroup(tab) {
@@ -640,6 +789,7 @@
       tab.removeAttribute(name);
     }
     tab.style.removeProperty("--zsg-color");
+    setInk(tab, "zsg-fg", "--zsg-fg", null);
   }
 
   // Lays out one space's tabs. Returns the tabs it put in a section.
@@ -672,17 +822,25 @@
       return false;
     });
     grouped.sort((a, b) => a.si - b.si); // stable: keeps order within a section
-    const colors = new Map();
+    // Each section's color, and text colors that read on its backgrounds.
+    const text = parseColor(getComputedStyle(container).color);
+    const looks = new Map();
+    const lookFor = si => {
+      if (!looks.has(si)) {
+        const color = colorFor(sections[si], opts);
+        looks.set(si, { color, ink: opts.readable ? sectionInk(color, text, opts) : null });
+      }
+      return looks.get(si);
+    };
     grouped.forEach(({ tab, si }, i) => {
       const label = displayName(sections[si]);
       tab.setAttribute("zsg-group", label);
       tab.toggleAttribute("zsg-collapsed", opts.collapsed.has(label));
       tab.toggleAttribute("zsg-first", grouped[i - 1]?.si !== si);
       tab.toggleAttribute("zsg-last", grouped[i + 1]?.si !== si);
-      if (!colors.has(si)) {
-        colors.set(si, opts.colored ? sectionColor(sections[si]) : null);
-      }
-      setColor(tab, colors.get(si));
+      const look = lookFor(si);
+      setColor(tab, look.color);
+      setInk(tab, "zsg-fg", "--zsg-fg", look.ink?.tabs);
     });
 
     // 1. Move grouped tabs to the top, in section order.
@@ -722,7 +880,7 @@
         return; // two sections with the same name: the first one wins
       }
       const header = existing.get(label) ?? makeHeader(label);
-      updateHeader(header, section, tabs, opts);
+      updateHeader(header, section, tabs, opts, lookFor(si));
 
       if (tabs.length) {
         if (header.nextElementSibling !== tabs[0]) {
@@ -748,8 +906,10 @@
       keep.add(header);
     });
 
-    // 3. A plain line between the sections and everything else.
-    if (last && opts.restDivider) {
+    // 3. A plain line between the sections and everything else, with Zen's
+    // Clear on it if picked (then just the button if the line is off).
+    const clearHere = opts.clearButton !== "top";
+    if (last && (opts.restDivider || clearHere)) {
       const firstOther = nextContent(last);
       if (firstOther) {
         let rest = [...container.children].find(el => el.classList.contains("zsg-rest"));
@@ -757,9 +917,14 @@
         if (rest.nextElementSibling !== firstOther) {
           container.insertBefore(rest, firstOther);
         }
+        rest.toggleAttribute("zsg-no-line", !opts.restDivider);
+        rest.toggleAttribute("zsg-clear", clearHere);
         keep.add(rest);
       }
     }
+    // Zen's own Clear (above the tabs) goes away when it's on the divider
+    // only, as long as there are sections; without any, it stays.
+    container.closest("zen-workspace")?.toggleAttribute("zsg-clear-moved", !!last && opts.clearButton === "divider");
 
     for (const el of [...container.children]) {
       if (isOurs(el) && !keep.has(el)) {
@@ -774,6 +939,9 @@
     const root = document.documentElement;
     root.setAttribute("zsg-tab-count", opts.tabCount);
     root.setAttribute("zsg-background", opts.background);
+    const [hPct, tPct] = STRENGTHS[opts.strength];
+    root.style.setProperty("--zsg-hpct", hPct + "%");
+    root.style.setProperty("--zsg-tpct", tPct + "%");
     root.toggleAttribute("zsg-no-header-line", !opts.headerLine);
     root.toggleAttribute("zsg-indent", opts.indent);
     root.toggleAttribute("zsg-group-line", opts.groupLine);
@@ -815,7 +983,14 @@
         button: choice(PREF_HEADER_BUTTON, "clear", ["clear", "unload", "none"]),
         indent: Services.prefs.getBoolPref(PREF_INDENT, false),
         groupLine: Services.prefs.getBoolPref(PREF_GROUP_LINE, false),
-        background: choice(PREF_BACKGROUND, "none", ["none", "header", "tabs", "both"]),
+        background: choice(PREF_BACKGROUND, "none", ["none", "header", "tabs", "both", "group"]),
+        strength: choice(PREF_BG_STRENGTH, "light", Object.keys(STRENGTHS)),
+        colorMode: choice(PREF_COLOR_MODE, "section", ["section", "single"]),
+        singleColor: /^#[0-9a-f]{6}$/i.test(Services.prefs.getStringPref(PREF_SINGLE_COLOR, ""))
+          ? Services.prefs.getStringPref(PREF_SINGLE_COLOR)
+          : "#4da3ff",
+        readable: Services.prefs.getBoolPref(PREF_READABLE, true),
+        clearButton: choice(PREF_CLEAR_BUTTON, "top", ["top", "divider", "both"]),
         minTabs: Number(choice(PREF_MIN_TABS, "1", Array.from({ length: MAX_MIN_TABS }, (_, i) => String(i + 1)))),
       };
       applyLook(opts);
@@ -849,6 +1024,17 @@
     return [...header.parentElement.children].filter(
       el => el.localName === "tab" && el.getAttribute("zsg-group") === label
     );
+  }
+
+  // The divider's Clear: the tabs below it, which aren't in a section
+  // (folders and split views are left alone, like Zen's own Clear).
+  function closeRest(rest) {
+    const tabs = [...rest.parentElement.children].filter(
+      el => el.localName === "tab" && !el.hasAttribute("zsg-group") && !el.pinned
+    );
+    if (tabs.length) {
+      gBrowser.removeTabs(tabs);
+    }
   }
 
   function closeGroup(header) {
@@ -1124,8 +1310,10 @@
 
     // Used by the settings page.
     window.ZenSiteGroups = { getSections, setSections, defaultSections, normalizeSite, defaultName, displayName, iconColor, getSpaces };
-    if (Services.prefs.prefHasUserValue(PREF_OLD_ICON_COLORS)) {
-      Services.prefs.clearUserPref(PREF_OLD_ICON_COLORS);
+    for (const pref of OLD_ICON_COLOR_PREFS) {
+      if (Services.prefs.prefHasUserValue(pref)) {
+        Services.prefs.clearUserPref(pref);
+      }
     }
 
     const tabContainer = gBrowser.tabContainer;
@@ -1135,6 +1323,11 @@
       tabContainer.addEventListener(type, schedule);
     }
     window.addEventListener("ZenWorkspacesUIUpdate", schedule);
+    tabContainer.addEventListener("TabAttrModified", e => {
+      if (unsureSites.size && e.detail?.changed?.includes("image")) {
+        retryUnsureColors();
+      }
+    });
 
     const { STATE_START, STATE_STOP, STATE_IS_DOCUMENT } = Ci.nsIWebProgressListener;
     gBrowser.addTabsProgressListener({

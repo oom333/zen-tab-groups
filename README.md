@@ -9,12 +9,12 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 ## Features
 
 - **Sorted automatically.** New tabs go straight into their section, in the order you choose. No dragging.
-- **Colored headers.** Each header takes the main color of the site's logo, or a color you pick.
+- **Colored headers.** Each header takes the main color of the site's logo, a color you pick, or one color for every section.
 - **Collections.** Put several sites under one name, like ChatGPT, Claude and Gemini as "AI".
 - **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all (or **Unload** to free their memory).
-- **Your look.** Indent a section's tabs, draw a line along them, tint the header or tabs, hide the header line, arrow or tab count.
+- **Your look.** Indent a section's tabs, draw a line along them, tint the header, the tabs or the whole section as one block (light, medium or strong), hide the header line, arrow or tab count. Text stays readable on any color.
 - **Per space.** Keep a section to the spaces you choose, and group a site only once enough of its tabs are open.
-- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: AI, Social and Watch, plus **More ideas** with Shopping, News, Work, Coding, Music, Gaming and Banking (100 US banks, card issuers, money apps and credit unions).
+- **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: Browser, Social and Watch, plus **More ideas** with AI, Shopping, News, Work, Coding, Music, Gaming and Banking (100 US banks, card issuers, money apps and credit unions).
 - **Backups.** Save your sections and options to a file, and restore them later or on another computer.
 
 ![Before and after](previews/before-after.png)
@@ -65,13 +65,17 @@ Available on the settings page, and in Sine's settings for the mod:
 Appearance:
 
 - **Colored headers:** on by default.
-- **Background:** a light shade of the section's color behind its header, its tabs, or both.
+- **Colors:** each section's own color (from its icon, or one you pick), or one color for all sections.
+- **Background:** a shade of the section's color behind its header, its tabs, both, or the whole section as one block.
+- **Background strength:** light (default), medium or strong.
+- **Keep text readable:** on by default. Text turns lighter or darker when it would be hard to read on a color.
 - **Indent tabs:** shifts each section's tabs to the right, like the tabs in a folder.
 - **Line along tabs:** a line in the section's color down the side of its tabs.
 - **Line in headers:** the line from a section's name to the edge of the sidebar; on by default.
 - **Collapse arrow:** right of the name (default), left of it, or hidden. Clicking a header folds its tabs either way.
 - **Tab count:** next to the name when a section is folded (default), always, or never.
 - **Divider below sections:** a thin line between your sections and your other tabs.
+- **Zen's Clear button:** at the top as usual (default), on the divider below your sections, or both. On the divider it closes only the tabs below it, the ones not in a section. It still shows when the divider line is off.
 
 Behavior:
 

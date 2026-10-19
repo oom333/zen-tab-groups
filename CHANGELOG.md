@@ -15,11 +15,26 @@ with Zen 1.23.3b through Sine.
 
 ### Added
 
-- **More ideas**: a fold-out under the collection ideas with Shopping,
+- **More ideas**: a fold-out under the collection ideas with AI, Shopping,
   News, Work, Coding, Music, Gaming and Banking, each with bundled icons.
+- A **Browser** idea (Zen, Firefox, Brave, Vivaldi, Opera, Arc and the
+  Chrome and Edge add-on stores) leads the ideas; AI moved to More ideas.
+- **Zen's Clear button** can sit at the top as usual, on the divider below
+  the sections (closing only the tabs below it), or both. It works with
+  the divider line switched off too.
+- **Background** can fill the **whole group**: one block behind the header
+  and all of its tabs.
+- **Background strength**: light, medium or strong.
+- **Colors**: each section's own, or **one color for all**.
+- **Keep text readable** (on by default): text turns lighter or darker when
+  it would be hard to read on a section's color or background.
 
 ### Fixed
 
+- Header colors could stay blank for good on a new profile: Zen's
+  placeholder icon was read as "this site has no color". The color cache
+  is rebuilt once.
+- The collapse arrow was black instead of the text's color.
 - The settings page now updates when an option is changed from Sine's
   options box while it's open.
 

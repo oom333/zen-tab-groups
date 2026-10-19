@@ -305,6 +305,19 @@ img.space-icon { -moz-context-properties: fill; fill: currentColor; }
 /* A long list gets the whole row. */
 .idea.expanded { grid-column: 1 / -1; }
 
+/* An option with more than one control (Colors: buttons and a color). */
+.option-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.color-input {
+  width: 32px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  cursor: pointer;
+}
+.color-input:disabled { opacity: 0.4; cursor: default; }
+
 /* "More ideas": folded packs under the main three. */
 .more-ideas { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
 .more-ideas summary {
@@ -401,6 +414,8 @@ div.option { cursor: default; }
 .p-header .label { opacity: 0.75; }
 .p-header .line { flex: 1; height: 1px; background: var(--sidebar-line); }
 .p-header.colored .label { color: var(--c); opacity: 1; }
+.p-header[style*="--fg"] { color: var(--fg); }
+.p-header[style*="--label"] .label, .p-header[style*="--label"] .chevron { color: var(--label) !important; opacity: 1; }
 .p-header.colored .line { background: color-mix(in srgb, var(--c) 55%, transparent); }
 .p-header.empty { opacity: 0.55; }
 .p-header .chevron {
@@ -427,9 +442,22 @@ div.option { cursor: default; }
 .p-header:not(.empty):hover .action { display: block; }
 .preview.no-header-line .p-header .line { visibility: hidden; }
 .preview.bg-header .p-header:not(.empty) {
-  background: color-mix(in srgb, var(--c, currentColor) 14%, transparent);
+  background: color-mix(in srgb, var(--c, currentColor) var(--hpct), transparent);
   border-radius: 6px;
 }
+/* Whole group: header and tabs as one block. */
+.preview.bg-group .p-header:not(.empty) {
+  background: color-mix(in srgb, var(--c, currentColor) var(--tpct), transparent);
+  border-radius: 10px 10px 0 0;
+  margin-top: 6px;
+}
+.preview.bg-group .p-group {
+  background: color-mix(in srgb, var(--c, currentColor) var(--tpct), transparent);
+  border-radius: 0 0 10px 10px;
+  margin-top: -2px;
+  padding-top: 2px;
+}
+.p-group[style*="--fg"] .p-tab:not(.active) { color: var(--fg); }
 
 /* A section's tabs: indented, with a line along them, tinted. */
 .p-group { display: grid; gap: 2px; position: relative; }
@@ -446,7 +474,7 @@ div.option { cursor: default; }
   background: var(--c, var(--sidebar-line));
   opacity: 0.75;
 }
-.preview.bg-tabs .p-group .p-tab:not(.active) { background: color-mix(in srgb, var(--c, currentColor) 10%, transparent); }
+.preview.bg-tabs .p-group .p-tab:not(.active) { background: color-mix(in srgb, var(--c, currentColor) var(--tpct), transparent); }
 
 .p-tab {
   display: flex;
@@ -463,7 +491,11 @@ div.option { cursor: default; }
 .p-tab.active { background: var(--sidebar-tab); }
 .p-tab.other { opacity: 0.6; }
 .p-dot { width: 16px; height: 16px; border-radius: 4px; background: var(--sidebar-line); flex: none; }
-.p-rest { height: 1px; background: var(--sidebar-line); margin: 6px 8px; }
+/* The divider below the sections, and Zen's Clear (on it, or at the top). */
+.p-rest, .p-top { display: flex; align-items: center; gap: 6px; margin: 2px 8px; min-height: 14px; font-size: 12px; font-weight: 500; }
+.p-rest .line, .p-top .line { flex: 1; height: 1px; background: var(--sidebar-line); }
+.p-rest.no-line .line { visibility: hidden; }
+.p-rest span:not(.line), .p-top span:not(.line) { opacity: 0.5; }
 .p-new { padding: 7px 10px; font-size: 13px; opacity: 0.5; }
 
 /* ---------- color picker ---------- */
