@@ -17,8 +17,9 @@ with Zen 1.23.3b through Sine.
 
 - **More ideas**: a fold-out under the collection ideas with AI, Shopping,
   News, Work, Coding, Music, Gaming and Banking, each with bundled icons.
-- A **Browser** idea (Zen, Firefox, Brave, Vivaldi, Opera, Arc and the
-  Chrome and Edge add-on stores) leads the ideas; AI moved to More ideas.
+- A **Search** idea (DuckDuckGo, Bing, Brave Search, Yahoo Search, Ecosia,
+  Startpage, Kagi, Qwant, Yandex and Baidu) leads the ideas; AI moved to
+  More ideas.
 - **Zen's Clear button** can sit at the top as usual, on the divider below
   the sections (closing only the tabs below it), or both. It works with
   the divider line switched off too.

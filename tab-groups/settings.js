@@ -96,9 +96,9 @@ const BANKS = [
 ];
 
 const IDEAS = [
-  // Browsers' sites and add-on stores (Chrome's and Edge's own pages live on
-  // google.com / microsoft.com, which would catch far more than browsers).
-  { name: "Browser", color: "#ff8a3d", sites: ["zen-browser.app", "mozilla.org", "firefox.com", "brave.com", "vivaldi.com", "opera.com", "arc.net", "chromewebstore.google.com", "microsoftedge.microsoft.com"] },
+  // Search engines. Google is left out: sites match by domain, so google.com
+  // would also take Gmail, Drive, Maps and the rest.
+  { name: "Search", color: "#ff8a3d", sites: ["duckduckgo.com", "bing.com", "search.brave.com", "search.yahoo.com", "ecosia.org", "startpage.com", "kagi.com", "qwant.com", "yandex.com", "baidu.com"] },
   { name: "Social", color: "#4da3ff", sites: ["x.com", "instagram.com", "facebook.com", "tiktok.com"] },
   { name: "Watch", color: "#ff6bcb", sites: ["netflix.com", "twitch.tv", "disneyplus.com", "primevideo.com"] },
   // Under "More ideas" (folded).
