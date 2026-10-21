@@ -636,12 +636,28 @@
     return uri;
   }
 
+  // The site each tab was last on. A tab woken from unloaded is on
+  // about:blank until its page starts loading (Zen forgets the address it
+  // kept for it), so it keeps its site meanwhile: otherwise it leaves its
+  // section for a moment, the tabs below it move up, and it comes back at
+  // the section's end.
+  const lastHost = new WeakMap();
+
   function tabHost(tab) {
+    let host = null;
     try {
-      return tabURI(tab)?.host?.toLowerCase() || null;
-    } catch {
-      return null; // about:, file:, etc.
+      const uri = tabURI(tab);
+      if (uri?.spec === "about:blank" && lastHost.has(tab)) {
+        return lastHost.get(tab);
+      }
+      host = uri?.host?.toLowerCase() || null;
+    } catch {} // about:, file:, etc.
+    if (host) {
+      lastHost.set(tab, host);
+    } else {
+      lastHost.delete(tab);
     }
+    return host;
   }
 
   // Index of the section whose website matches most specifically, or -1.
