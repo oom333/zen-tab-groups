@@ -6,6 +6,8 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-21
+
 ### Fixed
 
 - Clicking an unloaded tab in a section no longer moves it to the end of
