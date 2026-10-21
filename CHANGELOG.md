@@ -6,6 +6,14 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-21
+
+### Fixed
+
+- Clicking an unloaded tab in a section no longer moves it to the end of
+  the section (and scrolls the sidebar): while it woke up, its address read
+  as about:blank for a moment, so it left its section and came back last.
+
 ## [1.5.0] - 2026-10-19
 
 Brings in the 1.1.0–1.4.0 work from
