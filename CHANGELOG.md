@@ -6,18 +6,40 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-12
+
 ### Added
 
+- **Parts of a site** ([#11](https://github.com/oom333/zen-tab-groups/issues/11)):
+  a site can have a path, like `github.com/you/app`, and gets every page
+  under it. The longest match wins, so `github.com/you/app1` and
+  `github.com/you/app2` can be their own sections next to `github.com`.
 - **Outline new tabs**: tabs opened in the background (like with a
   middle-click) get a bright outline until you click them, or for 15
   seconds (Off, until clicked, 5 s to 1 min). A folded section with a new
   tab inside gets the outline on its header.
 
+### Changed
+
+- The header's **Clear** works like Zen's own Clear
+  ([#9](https://github.com/oom333/zen-tab-groups/issues/9)): it keeps the
+  tab you're on and closes the rest; click again to close that one too. The
+  Clear on the divider does the same. "Close all tabs in this section" in
+  the header menu still closes every one.
+
 ### Fixed
 
+- Tabs in a split view no longer drop out of their section
+  ([#7](https://github.com/oom333/zen-tab-groups/issues/7)): the split view
+  moves into the section as one, and folding the section hides it unless
+  you're on it.
 - Clicking an unloaded tab in a section no longer moves it to the end of
   the section (and scrolls the sidebar): while it woke up, its address read
-  as about:blank for a moment, so it left its section and came back last.
+  as about:blank for a moment, so it left its section and came back last
+  ([#1](https://github.com/oom333/zen-tab-groups/issues/1),
+  [#8](https://github.com/oom333/zen-tab-groups/issues/8)). Fix by
+  [@srisar](https://github.com/srisar) in
+  [#6](https://github.com/oom333/zen-tab-groups/pull/6).
 
 ## [1.5.0] - 2026-10-19
 
