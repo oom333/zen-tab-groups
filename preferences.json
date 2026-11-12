@@ -229,6 +229,43 @@
     ]
   },
   {
+    "property": "zen.sitegroups.new-tab-outline",
+    "label": "Outline new background tabs until clicked, or for",
+    "type": "dropdown",
+    "defaultValue": "15",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Off",
+        "value": "0"
+      },
+      {
+        "label": "Until clicked",
+        "value": "click"
+      },
+      {
+        "label": "5 seconds",
+        "value": "5"
+      },
+      {
+        "label": "10 seconds",
+        "value": "10"
+      },
+      {
+        "label": "15 seconds",
+        "value": "15"
+      },
+      {
+        "label": "30 seconds",
+        "value": "30"
+      },
+      {
+        "label": "1 minute",
+        "value": "60"
+      }
+    ]
+  },
+  {
     "property": "zen.sitegroups.keep-empty-headers",
     "label": "Always show headers, even with no tabs open",
     "type": "checkbox",

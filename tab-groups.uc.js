@@ -39,6 +39,10 @@
   // Zen's "Clear" (close unpinned tabs): above the tabs as usual, on the
   // divider below the sections (closing only the tabs below it), or both.
   const PREF_CLEAR_BUTTON = "zen.sitegroups.clear-button"; // "top" | "divider" | "both"
+  // An outline on tabs opened in the background, until they're clicked or
+  // for this many seconds. "0" is off, "click" is until clicked.
+  const PREF_NEW_TAB = "zen.sitegroups.new-tab-outline";
+  const NEW_TAB_CHOICES = ["0", "click", "5", "10", "15", "30", "60"];
   // How much color backgrounds use, as [header %, tabs %]. Headers get a
   // bit more so they stand out from their tabs. Same as the settings page's.
   const strengthPcts = value => {
@@ -214,6 +218,14 @@
     }
 
     tab[zsg-collapsed]:not([selected], [multiselected]) { display: none !important; }
+
+    /* A new tab not looked at yet, and the folded header that hides one. */
+    :root { --zsg-new: light-dark(#0060df, #5ce1ff); }
+    tab[zsg-new] > .tab-stack > .tab-background,
+    .zsg-header[zsg-closed][zsg-new] {
+      outline: 2px solid var(--zsg-new) !important;
+      outline-offset: -2px;
+    }
   `;
 
   /* ---------- prefs ---------- */
@@ -794,6 +806,7 @@
     header.toggleAttribute("zsg-chevron-hidden", opts.chevron === "hidden");
     header.setAttribute("zsg-button", opts.button);
     header.toggleAttribute("zsg-none-loaded", !tabs.some(isLoaded));
+    header.toggleAttribute("zsg-new", tabs.some(t => t.hasAttribute("zsg-new")));
     const [text, tooltip] = BUTTONS[opts.button] ?? BUTTONS.clear;
     const button = header.querySelector(".zsg-clear");
     button.setAttribute("value", text);
@@ -1343,6 +1356,27 @@
       tabContainer.addEventListener(type, schedule);
     }
     window.addEventListener("ZenWorkspacesUIUpdate", schedule);
+
+    // New tabs get an outline until they're selected (tabs opened in front
+    // are selected right away) or the time runs out.
+    const unmarkNew = tab => {
+      if (tab.hasAttribute("zsg-new")) {
+        tab.removeAttribute("zsg-new");
+        schedule(); // its folded header, if any
+      }
+    };
+    tabContainer.addEventListener("TabOpen", e => {
+      const time = choice(PREF_NEW_TAB, "15", NEW_TAB_CHOICES);
+      if (!modEnabled || time === "0") {
+        return;
+      }
+      const tab = e.target;
+      tab.setAttribute("zsg-new", "");
+      if (time !== "click") {
+        setTimeout(() => unmarkNew(tab), time * 1000);
+      }
+    });
+    tabContainer.addEventListener("TabSelect", e => unmarkNew(e.target));
     tabContainer.addEventListener("TabAttrModified", e => {
       if (unsureSites.size && e.detail?.changed?.includes("image")) {
         retryUnsureColors();

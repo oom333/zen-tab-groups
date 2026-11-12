@@ -6,6 +6,13 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
+### Added
+
+- **Outline new tabs**: tabs opened in the background (like with a
+  middle-click) get a bright outline until you click them, or for 15
+  seconds (Off, until clicked, 5 s to 1 min). A folded section with a new
+  tab inside gets the outline on its header.
+
 ### Fixed
 
 - Clicking an unloaded tab in a section no longer moves it to the end of
