@@ -218,6 +218,7 @@
     }
 
     tab[zsg-collapsed]:not([selected], [multiselected]) { display: none !important; }
+    [zsg-split][zsg-collapsed]:not(:has(tab[selected], tab[multiselected])) { display: none !important; }
 
     /* A new tab not looked at yet, and the folded header that hides one. */
     :root { --zsg-new: light-dark(#0060df, #5ce1ff); }
@@ -239,21 +240,34 @@
   }
   const writeJSON = (pref, value) => Services.prefs.setStringPref(pref, JSON.stringify(value));
 
+  // A website as the sections store it: "youtube.com", or a part of one
+  // like "github.com/zen-browser" (its pages and everything below them).
   function normalizeSite(text) {
-    return String(text ?? "")
+    const [host, ...path] = String(text ?? "")
       .trim()
       .toLowerCase()
       .replace(/^[a-z]+:\/\//, "")
-      .replace(/[/?#].*$/, "")
-      .replace(/^www\./, "");
+      .replace(/[?#].*$/, "")
+      .replace(/^www\./, "")
+      .split("/");
+    const rest = path.filter(Boolean).join("/");
+    return rest ? `${host}/${rest}` : host;
   }
 
+  // The website part of a site ("github.com/zen-browser" -> "github.com").
+  const siteHost = site => String(site ?? "").split("/")[0];
+
   function defaultName(site) {
+    const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+    // A part of a site is named after its last bit (github.com/you/app -> App).
+    const path = site.split("/").slice(1);
+    if (path.length) {
+      return cap(path.at(-1));
+    }
     let base = site;
     try {
       base = Services.eTLD.getBaseDomainFromHost(site);
     } catch {}
-    const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
     const name = cap(base.split(".")[0]);
     return site === base ? name : `${name} ${cap(site.slice(0, -base.length - 1))}`;
   }
@@ -543,7 +557,8 @@
 
   // Cached color for a website: "#rrggbb", "" (icon has no clear color),
   // or undefined (not worked out yet).
-  const cachedIconColor = site => readJSON(PREF_ICON_COLORS, {})[site];
+  // (A part of a site, like github.com/you, uses the website's icon.)
+  const cachedIconColor = site => readJSON(PREF_ICON_COLORS, {})[siteHost(site)];
 
   const colorJobs = new Map();
   // Sites with no trustworthy icon yet; retried once a tab's icon arrives.
@@ -556,6 +571,7 @@
     schedule();
   }
   function iconColor(site) {
+    site = siteHost(site);
     const cached = cachedIconColor(site);
     if (cached !== undefined) {
       return Promise.resolve(cached || null);
@@ -653,29 +669,47 @@
   // kept for it), so it keeps its site meanwhile: otherwise it leaves its
   // section for a moment, the tabs below it move up, and it comes back at
   // the section's end.
-  const lastHost = new WeakMap();
+  const lastAddress = new WeakMap();
 
-  function tabHost(tab) {
-    let host = null;
+  // Where a tab is, as website + path in lower case with no query, like
+  // "github.com/zen-browser/desktop/issues", or null (about:, file:, etc.).
+  function tabAddress(tab) {
+    let address = null;
     try {
       const uri = tabURI(tab);
-      if (uri?.spec === "about:blank" && lastHost.has(tab)) {
-        return lastHost.get(tab);
+      if (uri?.spec === "about:blank" && lastAddress.has(tab)) {
+        return lastAddress.get(tab);
       }
-      host = uri?.host?.toLowerCase() || null;
+      const host = uri?.host?.toLowerCase();
+      if (host) {
+        address = host + uri.pathQueryRef.replace(/[?#].*$/, "").replace(/\/+$/, "").toLowerCase();
+      }
     } catch {} // about:, file:, etc.
-    if (host) {
-      lastHost.set(tab, host);
+    if (address) {
+      lastAddress.set(tab, address);
     } else {
-      lastHost.delete(tab);
+      lastAddress.delete(tab);
     }
-    return host;
+    return address;
+  }
+
+  const tabHost = tab => tabAddress(tab)?.split("/")[0] ?? null;
+
+  // Whether an address is on a section's site: the site itself or a
+  // sub-site, and for a site with a path, that page or one below it.
+  function siteMatches(address, site) {
+    const [host, ...path] = address.split("/");
+    const [siteDomain, ...sitePath] = site.split("/");
+    if (host !== siteDomain && !host.endsWith("." + siteDomain)) {
+      return false;
+    }
+    return sitePath.every((part, i) => path[i] === part);
   }
 
   // Index of the section whose website matches most specifically, or -1.
   // With `spaceId`, only sections used in that space count.
-  function sectionIndexForHost(host, sections, spaceId = null) {
-    if (!host) {
+  function sectionIndexFor(address, sections, spaceId = null) {
+    if (!address) {
       return -1;
     }
     let best = -1;
@@ -685,7 +719,7 @@
         return;
       }
       for (const d of section.sites) {
-        if ((host === d || host.endsWith("." + d)) && d.length > bestLen) {
+        if (d.length > bestLen && siteMatches(address, d)) {
           best = i;
           bestLen = d.length;
         }
@@ -772,7 +806,7 @@
   }
 
   const BUTTONS = {
-    clear: ["Clear", "Close all tabs in this section"],
+    clear: ["Clear", "Close the tabs in this section (keeps the one you're on; click again to close it too)"],
     unload: ["Unload", "Unload all tabs in this section"],
   };
 
@@ -825,33 +859,55 @@
     setInk(tab, "zsg-fg", "--zsg-fg", null);
   }
 
+  // A split view: Zen keeps its tabs together in one box in the tab list.
+  const isSplit = el =>
+    (el.localName === "tab-group" && el.hasAttribute("split-view-group")) || el.localName === "tab-split-view-wrapper";
+
+  function ungroupSplit(el) {
+    el.removeAttribute("zsg-split");
+    el.removeAttribute("zsg-collapsed");
+    for (const tab of el.querySelectorAll("tab")) {
+      ungroup(tab);
+    }
+  }
+
   // Lays out one space's tabs. Returns the tabs it put in a section.
   function layoutSection(container, sections, opts) {
     const spaceId = container.getAttribute("zen-workspace-id");
     const content = [...container.children].filter(isContent);
+    // Each entry is a tab, or a split view that moves as one (it joins the
+    // section of its first tab that has one).
     let grouped = [];
     for (const el of content) {
-      if (el.localName !== "tab") {
-        continue;
+      const split = isSplit(el);
+      if (el.localName !== "tab" && !split) {
+        continue; // folders keep their tabs
       }
-      const si = sectionIndexForHost(tabHost(el), sections, spaceId);
-      if (si >= 0) {
-        grouped.push({ tab: el, si });
+      const tabs = split ? [...el.querySelectorAll("tab")].filter(t => !t.closing) : [el];
+      let si = -1;
+      for (const tab of tabs) {
+        si = sectionIndexFor(tabAddress(tab), sections, spaceId);
+        if (si >= 0) {
+          break;
+        }
+      }
+      if (si >= 0 && tabs.length) {
+        grouped.push({ el, tabs, si, split });
       } else {
-        ungroup(el);
+        split ? ungroupSplit(el) : ungroup(el);
       }
     }
     // Sections with fewer tabs than their minimum don't form: their tabs stay
     // where they are.
     const counts = new Map();
-    for (const { si } of grouped) {
-      counts.set(si, (counts.get(si) ?? 0) + 1);
+    for (const { si, tabs } of grouped) {
+      counts.set(si, (counts.get(si) ?? 0) + tabs.length);
     }
-    grouped = grouped.filter(({ tab, si }) => {
+    grouped = grouped.filter(({ el, si, split }) => {
       if (counts.get(si) >= (sections[si].minTabs ?? opts.minTabs)) {
         return true;
       }
-      ungroup(tab);
+      split ? ungroupSplit(el) : ungroup(el);
       return false;
     });
     grouped.sort((a, b) => a.si - b.si); // stable: keeps order within a section
@@ -865,33 +921,42 @@
       }
       return looks.get(si);
     };
-    grouped.forEach(({ tab, si }, i) => {
+    grouped.forEach(({ el, tabs, si, split }, i) => {
       const label = displayName(sections[si]);
-      tab.setAttribute("zsg-group", label);
-      tab.toggleAttribute("zsg-collapsed", opts.collapsed.has(label));
-      tab.toggleAttribute("zsg-first", grouped[i - 1]?.si !== si);
-      tab.toggleAttribute("zsg-last", grouped[i + 1]?.si !== si);
+      const collapsed = opts.collapsed.has(label);
       const look = lookFor(si);
-      setColor(tab, look.color);
-      setInk(tab, "zsg-fg", "--zsg-fg", look.ink?.tabs);
+      // A folded section hides a split view as a whole (CSS), not tab by tab.
+      if (split) {
+        el.setAttribute("zsg-split", label);
+        el.toggleAttribute("zsg-collapsed", collapsed);
+      }
+      tabs.forEach((tab, j) => {
+        tab.setAttribute("zsg-group", label);
+        tab.toggleAttribute("zsg-collapsed", collapsed && !split);
+        tab.toggleAttribute("zsg-first", j === 0 && grouped[i - 1]?.si !== si);
+        tab.toggleAttribute("zsg-last", j === tabs.length - 1 && grouped[i + 1]?.si !== si);
+        setColor(tab, look.color);
+        setInk(tab, "zsg-fg", "--zsg-fg", look.ink?.tabs);
+      });
     });
 
-    // 1. Move grouped tabs to the top, in section order.
-    let prevTab = null;
-    for (const { tab } of grouped) {
+    // 1. Move grouped tabs to the top, in section order. A split view moves
+    // as one: Zen moves the whole box when asked to move one of its tabs.
+    let prev = null;
+    for (const { el, tabs } of grouped) {
       try {
-        if (!prevTab) {
+        if (!prev) {
           const first = [...container.children].find(isContent);
-          if (first && first !== tab) {
-            gBrowser.moveTabBefore(tab, first);
+          if (first && first !== el) {
+            gBrowser.moveTabBefore(tabs[0], isSplit(first) ? first.querySelector("tab") : first);
           }
-        } else if (nextContent(prevTab) !== tab) {
-          gBrowser.moveTabAfter(tab, prevTab);
+        } else if (nextContent(prev.el) !== el) {
+          gBrowser.moveTabAfter(tabs[0], prev.tabs.at(-1));
         }
       } catch (ex) {
         console.error("[Zen Tab Groups] move failed", ex);
       }
-      prevTab = tab;
+      prev = { el, tabs };
     }
 
     // 2. A header above each section (also empty ones, if enabled).
@@ -904,7 +969,8 @@
     const keep = new Set();
     let last = null; // last element of the sections area so far
     sections.forEach((section, si) => {
-      const tabs = grouped.filter(g => g.si === si).map(g => g.tab);
+      const members = grouped.filter(g => g.si === si);
+      const tabs = members.flatMap(g => g.tabs);
       if ((!tabs.length && !opts.keepEmpty) || !inSpace(section, spaceId)) {
         return;
       }
@@ -916,10 +982,10 @@
       updateHeader(header, section, tabs, opts, lookFor(si));
 
       if (tabs.length) {
-        if (header.nextElementSibling !== tabs[0]) {
-          container.insertBefore(header, tabs[0]);
+        if (header.nextElementSibling !== members[0].el) {
+          container.insertBefore(header, members[0].el);
         }
-        last = tabs.at(-1);
+        last = members.at(-1).el;
       } else if (last) {
         if (last.nextElementSibling !== header) {
           last.after(header);
@@ -964,7 +1030,7 @@
         el.remove();
       }
     }
-    return grouped.map(({ tab }) => tab);
+    return grouped.flatMap(({ tabs }) => tabs);
   }
 
   // Options that style tabs and headers through attributes on the window.
@@ -1032,11 +1098,16 @@
       for (const container of document.querySelectorAll(".zen-workspace-normal-tabs-section")) {
         layoutSection(container, sections, opts).forEach(tab => grouped.add(tab));
       }
-      // Tabs that left a space's list (pinned, put in a folder or a split
-      // view) keep nothing of their section, so a folded one isn't hidden.
+      // Tabs that left a space's list (pinned or put in a folder) keep
+      // nothing of their section, so a folded one isn't hidden.
       for (const tab of gBrowser.tabs) {
         if (!grouped.has(tab) && tab.hasAttribute("zsg-group")) {
           ungroup(tab);
+        }
+      }
+      for (const el of document.querySelectorAll("[zsg-split]")) {
+        if (![...el.querySelectorAll("tab")].some(tab => grouped.has(tab))) {
+          ungroupSplit(el);
         }
       }
     } catch (ex) {
@@ -1054,24 +1125,37 @@
 
   function groupTabs(header) {
     const label = header.getAttribute("data-label");
-    return [...header.parentElement.children].filter(
-      el => el.localName === "tab" && el.getAttribute("zsg-group") === label
-    );
+    return [...header.parentElement.children]
+      .flatMap(el => (isSplit(el) ? [...el.querySelectorAll("tab")] : [el]))
+      .filter(el => el.localName === "tab" && el.getAttribute("zsg-group") === label);
   }
 
-  // The divider's Clear: the tabs below it, which aren't in a section
-  // (folders and split views are left alone, like Zen's own Clear).
-  function closeRest(rest) {
-    const tabs = [...rest.parentElement.children].filter(
-      el => el.localName === "tab" && !el.hasAttribute("zsg-group") && !el.pinned
-    );
+  // Like Zen's own Clear: the tab you're on stays open, unless it's the
+  // only one left (so a second click closes it too).
+  function clearTabs(tabs) {
+    if (tabs.length > 1) {
+      tabs = tabs.filter(tab => !tab.selected && !tab.multiselected);
+    }
     if (tabs.length) {
       gBrowser.removeTabs(tabs);
     }
   }
 
-  function closeGroup(header) {
-    gBrowser.removeTabs(groupTabs(header));
+  // The divider's Clear: the tabs below it, which aren't in a section
+  // (folders and split views are left alone, like Zen's own Clear).
+  function closeRest(rest) {
+    clearTabs(
+      [...rest.parentElement.children].filter(
+        el => el.localName === "tab" && !el.hasAttribute("zsg-group") && !el.pinned
+      )
+    );
+  }
+
+  // The header's Clear keeps the tab you're on; the menu's "Close all tabs"
+  // closes every one.
+  function closeGroup(header, all = false) {
+    const tabs = groupTabs(header);
+    all ? gBrowser.removeTabs(tabs) : clearTabs(tabs);
   }
 
   // Like a folder's unload button: the tabs stay, their pages are unloaded
@@ -1124,14 +1208,17 @@
     setSections(sections);
   }
 
-  function removeSite(host) {
+  function removeSite(address) {
     const sections = getSections();
-    const si = sectionIndexForHost(host, sections);
+    const si = sectionIndexFor(address, sections);
     if (si < 0) {
       return;
     }
     const section = sections[si];
-    const site = section.sites.find(d => host === d || host.endsWith("." + d));
+    // The most specific of its sites that the tab is on (the one that matched).
+    const site = section.sites
+      .filter(d => siteMatches(address, d))
+      .reduce((a, b) => (b.length > a.length ? b : a));
     section.sites = section.sites.filter(d => d !== site);
     if (!section.sites.length && section.kind === "site") {
       sections.splice(si, 1);
@@ -1150,17 +1237,17 @@
 
   function setupMenus() {
     // Tab context menu: put the tab's website in a section, or take it out.
-    let contextHost = null;
+    let contextAddress = null;
     const tabMenu = document.getElementById("tabContextMenu");
     const sep = document.createXULElement("menuseparator");
     // Labels name the tab's site once the menu opens; these are for anything
     // that lists the items before that (like Zen Context Menu's settings).
-    const ownItem = menuItem("Give this site its own section", () => contextHost && addSiteAsSection(contextHost));
+    const ownItem = menuItem("Give this site its own section", () => contextAddress && addSiteAsSection(siteHost(contextAddress)));
     const collectionMenu = document.createXULElement("menu");
     collectionMenu.setAttribute("label", "Add this site to a collection");
     const collectionPopup = document.createXULElement("menupopup");
     collectionMenu.append(collectionPopup);
-    const removeItem = menuItem("Remove this site from its section", () => contextHost && removeSite(contextHost));
+    const removeItem = menuItem("Remove this site from its section", () => contextAddress && removeSite(contextAddress));
     const settingsItem = menuItem("Tab Groups settings…", openSettings);
     const all = [sep, ownItem, collectionMenu, removeItem, settingsItem];
     // Ids let other mods (Zen Context Menu) recognize the items, whose labels
@@ -1180,15 +1267,16 @@
       // Switched off in the options: none of the items, settings included
       // (the header menu and Sine's gear button still open it).
       const showItems = Services.prefs.getBoolPref(PREF_TAB_MENU, true);
-      const host = tab && !tab.pinned && modEnabled && showItems ? tabHost(tab) : null;
-      contextHost = host;
-      all.forEach(el => (el.hidden = !host));
-      if (!host) {
+      const address = tab && !tab.pinned && modEnabled && showItems ? tabAddress(tab) : null;
+      contextAddress = address;
+      all.forEach(el => (el.hidden = !address));
+      if (!address) {
         return;
       }
+      const host = siteHost(address);
       const site = siteForHost(host);
       const sections = getSections();
-      const si = sectionIndexForHost(host, sections);
+      const si = sectionIndexFor(address, sections);
       ownItem.hidden = collectionMenu.hidden = si >= 0;
       removeItem.hidden = si < 0;
       if (si >= 0) {
@@ -1213,7 +1301,7 @@
     const closeAllItem = menuItem("Close all tabs in this section", () => {
       const header = triggerHeader();
       if (header) {
-        closeGroup(header);
+        closeGroup(header, true);
       }
     });
     const unloadAllItem = menuItem("Unload all tabs in this section", () => {

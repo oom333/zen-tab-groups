@@ -11,8 +11,10 @@ Keeps your busiest sites at the top of Zen's sidebar. Tabs from YouTube, Reddit 
 - **Sorted automatically.** New tabs go straight into their section, in the order you choose. No dragging.
 - **Colored headers.** Each header takes the main color of the site's logo, a color you pick, or one color for every section.
 - **Collections.** Put several sites under one name, like ChatGPT, Claude and Gemini as "AI".
-- **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them all (or **Unload** to free their memory).
+- **Fold away.** Hover a header to show the collapse arrow. Click it to hide the section's tabs, or click **Clear** to close them (like Zen's own Clear, it keeps the tab you're on until you click again), or **Unload** to free their memory.
 - **Your look.** Indent a section's tabs, draw a line along them, tint the header, the tabs or the whole section as one block (with a strength slider), hide the header line, arrow or tab count. Text stays readable on any color.
+- **Split views stay put.** Tabs in a split view move into their section together.
+- **Parts of a site.** Give `github.com/you/app` its own section, apart from the rest of GitHub.
 - **Per space.** Keep a section to the spaces you choose, and group a site only once enough of its tabs are open.
 - **Settings page** with a live preview, drag-to-reorder and ready-made collection ideas: Search, Social and Watch, plus **More ideas** with AI, Shopping, News, Work, Coding, Music, Gaming and Banking (100 US banks, card issuers, money apps and credit unions).
 - **Backups.** Save your sections and options to a file, and restore them later or on another computer.
@@ -54,6 +56,8 @@ Out of the box you get sections for **YouTube, Reddit, Wikipedia and X**.
 
 A website can only be in one section. The most specific address wins, so `music.youtube.com` can have its own section next to `youtube.com`.
 
+A site can also be part of a website: type `github.com/zen-browser` and that section gets every page under it (`github.com/zen-browser/desktop/issues` too), while the rest of GitHub stays where it is. Add `github.com/you/app1` and `github.com/you/app2` as separate sections to give each repo its own.
+
 ### Spaces
 
 A section is used in every space unless you pick some: with more than one space, each section on the settings page has a button listing the spaces it's used in, or right-click its header → **Only in this space**. In the other spaces its tabs aren't grouped.
@@ -75,12 +79,12 @@ Appearance:
 - **Collapse arrow:** right of the name (default), left of it, or hidden. Clicking a header folds its tabs either way.
 - **Tab count:** next to the name when a section is folded (default), always, or never.
 - **Divider below sections:** a thin line between your sections and your other tabs.
-- **Zen's Clear button:** at the top as usual (default), on the divider below your sections, or both. On the divider it closes only the tabs below it, the ones not in a section. It still shows when the divider line is off.
+- **Zen's Clear button:** at the top as usual (default), on the divider below your sections, or both. On the divider it closes only the tabs below it, the ones not in a section, and keeps the tab you're on like Zen's does. It still shows when the divider line is off.
 
 Behavior:
 
 - **Group from:** how many of a section's tabs must be open in a space before they're grouped (1 by default, up to 10). With fewer, they stay where they are. Each section can set its own number on the settings page (**Group from** under its websites), say 3 for YouTube and the default for the rest.
-- **Header button:** what the button that appears when you hover a header does: **Clear** closes the section's tabs (default), **Unload** keeps them but unloads their pages, like a folder's button, or **None**.
+- **Header button:** what the button that appears when you hover a header does: **Clear** closes the section's tabs except the one you're on (default; click again to close that one too), **Unload** keeps them but unloads their pages, like a folder's button, or **None**.
 - **Always show headers:** keeps a section's header even when none of its tabs are open.
 - **Items in the tab menu:** on by default. Switch it off to keep Tab Groups' items out of the tab right-click menu; right-click a header to open the settings instead.
 

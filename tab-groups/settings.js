@@ -152,6 +152,7 @@ function h(tag, props = {}, ...children) {
 const iconSources = new Map();
 
 function favicon(site) {
+  site = siteHost(site); // a part of a site uses the website's icon
   if (iconSources.has(site)) {
     return h("img", { alt: "", src: iconSources.get(site) });
   }
@@ -174,14 +175,21 @@ function favicon(site) {
   return img;
 }
 
+// Same as the mod's: "youtube.com", or a part of a site like
+// "github.com/zen-browser".
 function normalizeSite(text) {
-  return String(text ?? "")
+  const [host, ...path] = String(text ?? "")
     .trim()
     .toLowerCase()
     .replace(/^[a-z]+:\/\//, "")
-    .replace(/[/?#].*$/, "")
-    .replace(/^www\./, "");
+    .replace(/[?#].*$/, "")
+    .replace(/^www\./, "")
+    .split("/");
+  const rest = path.filter(Boolean).join("/");
+  return rest ? `${host}/${rest}` : host;
 }
+
+const siteHost = site => String(site ?? "").split("/")[0];
 
 function defaultName(site) {
   if (!site) {
@@ -190,8 +198,12 @@ function defaultName(site) {
   if (api) {
     return api.defaultName(site);
   }
-  const parts = site.split(".");
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const path = site.split("/").slice(1);
+  if (path.length) {
+    return cap(path.at(-1));
+  }
+  const parts = site.split(".");
   return parts.length > 2 ? `${cap(parts.at(-2))} ${cap(parts[0])}` : cap(parts[0]);
 }
 
@@ -240,7 +252,7 @@ function autoColor(section) {
   for (const site of section.sites) {
     if (!iconColors.has(site)) {
       iconColors.set(site, null);
-      const job = api ? api.iconColor(site) : Promise.resolve(SAMPLE_COLORS[site] ?? null);
+      const job = api ? api.iconColor(site) : Promise.resolve(SAMPLE_COLORS[siteHost(site)] ?? null);
       job.then(color => {
         iconColors.set(site, color);
         if (color) {
