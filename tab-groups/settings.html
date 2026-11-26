@@ -199,6 +199,34 @@
             </div>
             <div class="option">
               <span class="option-text">
+                <b>Auto-group other sites</b>
+                <span class="muted">A site that isn't in any section gets a section of its own once this many of its tabs are open. It goes away when you close them. Right-click its header and pick “Keep as a section” to keep it.</span>
+              </span>
+              <select class="select" data-pref="zen.sitegroups.auto-group" data-default="0" aria-label="Tabs needed to auto-group a site">
+                <option value="0">Off</option>
+                <option value="2">From 2 tabs</option>
+                <option value="3">From 3 tabs</option>
+                <option value="4">From 4 tabs</option>
+                <option value="5">From 5 tabs</option>
+                <option value="6">From 6 tabs</option>
+                <option value="7">From 7 tabs</option>
+                <option value="8">From 8 tabs</option>
+                <option value="9">From 9 tabs</option>
+                <option value="10">From 10 tabs</option>
+              </select>
+            </div>
+            <div class="option">
+              <span class="option-text">
+                <b>Where sections go</b>
+                <span class="muted">At the top, above your other tabs. Or in place: a section stays where its first tab is, and its other tabs join it there, so your other tabs aren't pushed down.</span>
+              </span>
+              <div class="segmented" data-pref="zen.sitegroups.position" data-default="top" role="group" aria-label="Where sections go">
+                <button type="button" data-value="top">Top</button>
+                <button type="button" data-value="in-place">In place</button>
+              </div>
+            </div>
+            <div class="option">
+              <span class="option-text">
                 <b>Header button</b>
                 <span class="muted">Shown when you hover a header. Clear closes the section's tabs except the one you're on (click again to close that too), like Zen's own Clear; Unload keeps them but frees their memory, like a folder's button.</span>
               </span>

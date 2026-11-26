@@ -6,10 +6,18 @@ tells Sine an update is available.
 
 ## [Unreleased]
 
-## [1.6.0] - 2026-11-12
+## [1.6.0] - 2026-11-26
 
 ### Added
 
+- **Auto-group other sites**: a site that isn't in any section gets a
+  temporary section of its own once 2 to 10 of its tabs are open (off by
+  default). It goes away when you close them; right-click its header and
+  pick **Keep as a section** to keep it.
+- **Where sections go**: at the top (as before), or **in place**, where
+  a section's first tab is. Its other tabs join it there, so sections no
+  longer pile up at the top and push your other tabs down. A thin line
+  closes each section that other tabs follow.
 - **Parts of a site** ([#11](https://github.com/oom333/zen-tab-groups/issues/11)):
   a site can have a path, like `github.com/you/app`, and gets every page
   under it. The longest match wins, so `github.com/you/app1` and

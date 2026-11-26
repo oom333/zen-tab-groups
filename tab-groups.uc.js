@@ -54,6 +54,12 @@
   // box can offer it as a list).
   const PREF_MIN_TABS = "zen.sitegroups.min-tabs";
   const MAX_MIN_TABS = 10;
+  // A site that isn't in any section gets a temporary one of its own once
+  // this many of its tabs are open in a space ("0" is off).
+  const PREF_AUTO_GROUP = "zen.sitegroups.auto-group";
+  const AUTO_GROUP_CHOICES = ["0", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+  // Where sections go: all at the top, or where their first tab already is.
+  const PREF_POSITION = "zen.sitegroups.position"; // "top" | "in-place"
 
   // A section is either one website ("site") or several under a name you
   // pick ("collection"). A website can only belong to one section. `spaces`
@@ -845,6 +851,12 @@
     const button = header.querySelector(".zsg-clear");
     button.setAttribute("value", text);
     button.setAttribute("tooltiptext", tooltip);
+    header.toggleAttribute("zsg-auto", !!section.auto);
+    if (section.auto) {
+      header.setAttribute("data-site", section.sites[0]);
+    } else {
+      header.removeAttribute("data-site");
+    }
     header.toggleAttribute("zsg-colored", !!look.color);
     setColor(header, look.color);
     setInk(header, "zsg-fg", "--zsg-fg", look.ink?.header);
@@ -871,10 +883,45 @@
     }
   }
 
+  const splitTabs = el => [...el.querySelectorAll("tab")].filter(t => !t.closing);
+
+  // Temporary sections for sites that aren't in a section but have at least
+  // `min` tabs open in this space, in the order their first tab comes.
+  function autoSections(content, sections, spaceId, min) {
+    const counts = new Map();
+    for (const el of content) {
+      const tabs = isSplit(el) ? splitTabs(el) : el.localName === "tab" ? [el] : [];
+      for (const tab of tabs) {
+        const address = tabAddress(tab);
+        if (address && sectionIndexFor(address, sections, spaceId) < 0) {
+          const site = siteForHost(siteHost(address));
+          counts.set(site, (counts.get(site) ?? 0) + 1);
+        }
+      }
+    }
+    // A name that's taken (example.net next to an "Example" section) becomes
+    // the full address instead.
+    const names = new Set(sections.map(displayName));
+    const autos = [];
+    for (const [site, n] of counts) {
+      const name = names.has(defaultName(site)) ? site : "";
+      const section = { kind: "site", name, sites: [site], color: null, spaces: [], minTabs: 1, auto: true };
+      if (n >= min && !names.has(displayName(section))) {
+        names.add(displayName(section));
+        autos.push(section);
+      }
+    }
+    return autos;
+  }
+
   // Lays out one space's tabs. Returns the tabs it put in a section.
   function layoutSection(container, sections, opts) {
     const spaceId = container.getAttribute("zen-workspace-id");
     const content = [...container.children].filter(isContent);
+    if (opts.autoGroup) {
+      sections = sections.concat(autoSections(content, sections, spaceId, opts.autoGroup));
+    }
+    const inPlace = opts.position === "in-place";
     // Each entry is a tab, or a split view that moves as one (it joins the
     // section of its first tab that has one).
     let grouped = [];
@@ -910,7 +957,15 @@
       split ? ungroupSplit(el) : ungroup(el);
       return false;
     });
-    grouped.sort((a, b) => a.si - b.si); // stable: keeps order within a section
+    // Section order at the top; in place, the order their first tabs come in.
+    // (Sorting is stable, so tabs keep their order within a section.)
+    if (inPlace) {
+      const firstAt = new Map();
+      grouped.forEach((g, i) => firstAt.has(g.si) || firstAt.set(g.si, i));
+      grouped.sort((a, b) => firstAt.get(a.si) - firstAt.get(b.si));
+    } else {
+      grouped.sort((a, b) => a.si - b.si);
+    }
     // Each section's color, and text colors that read on its backgrounds.
     const text = parseColor(getComputedStyle(container).color);
     const looks = new Map();
@@ -942,10 +997,15 @@
 
     // 1. Move grouped tabs to the top, in section order. A split view moves
     // as one: Zen moves the whole box when asked to move one of its tabs.
+    // In place, a section's first tab stays put and the rest join it.
     let prev = null;
-    for (const { el, tabs } of grouped) {
+    for (const { el, tabs, si } of grouped) {
       try {
-        if (!prev) {
+        if (inPlace) {
+          if (prev?.si === si && nextContent(prev.el) !== el) {
+            gBrowser.moveTabAfter(tabs[0], prev.tabs.at(-1));
+          }
+        } else if (!prev) {
           const first = [...container.children].find(isContent);
           if (first && first !== el) {
             gBrowser.moveTabBefore(tabs[0], isSplit(first) ? first.querySelector("tab") : first);
@@ -956,7 +1016,7 @@
       } catch (ex) {
         console.error("[Zen Tab Groups] move failed", ex);
       }
-      prev = { el, tabs };
+      prev = { el, tabs, si };
     }
 
     // 2. A header above each section (also empty ones, if enabled).
@@ -968,6 +1028,8 @@
     }
     const keep = new Set();
     let last = null; // last element of the sections area so far
+    const emptyHeaders = []; // in place: these go at the top
+    const ends = []; // in place: each section's last element
     sections.forEach((section, si) => {
       const members = grouped.filter(g => g.si === si);
       const tabs = members.flatMap(g => g.tabs);
@@ -986,6 +1048,9 @@
           container.insertBefore(header, members[0].el);
         }
         last = members.at(-1).el;
+        ends.push({ label, el: last });
+      } else if (inPlace) {
+        emptyHeaders.push(header);
       } else if (last) {
         if (last.nextElementSibling !== header) {
           last.after(header);
@@ -1005,13 +1070,44 @@
       keep.add(header);
     });
 
+    // In place, headers of sections with no tabs open go at the very top.
+    if (emptyHeaders.length) {
+      let ref =
+        [...container.children].find(el => isContent(el) || (keep.has(el) && !emptyHeaders.includes(el))) ??
+        container.querySelector(":scope > #tabbrowser-arrowscrollbox-periphery");
+      for (const header of emptyHeaders.reverse()) {
+        if (header.nextElementSibling !== ref) {
+          container.insertBefore(header, ref);
+        }
+        ref = header;
+      }
+    }
+
     // 3. A plain line between the sections and everything else, with Zen's
-    // Clear on it if picked (then just the button if the line is off).
-    const clearHere = opts.clearButton !== "top";
-    if (last && (opts.restDivider || clearHere)) {
+    // Clear on it if picked (then just the button if the line is off). In
+    // place, a line (no button) closes each section that other tabs follow.
+    const clearHere = opts.clearButton !== "top" && !inPlace;
+    if (inPlace && opts.restDivider) {
+      const groupedEls = new Set(grouped.map(g => g.el));
+      for (const { label, el } of ends) {
+        const next = nextContent(el);
+        if (!next || groupedEls.has(next)) {
+          continue; // the end of the list, or the next section's header
+        }
+        const end = [...container.children].find(e => e.getAttribute("data-end") === label) ?? makeRestDivider();
+        end.setAttribute("data-end", label);
+        end.removeAttribute("zsg-clear");
+        end.removeAttribute("zsg-no-line");
+        if (end.nextElementSibling !== next) {
+          container.insertBefore(end, next);
+        }
+        keep.add(end);
+      }
+    }
+    if (!inPlace && last && (opts.restDivider || clearHere)) {
       const firstOther = nextContent(last);
       if (firstOther) {
-        let rest = [...container.children].find(el => el.classList.contains("zsg-rest"));
+        let rest = [...container.children].find(el => el.classList.contains("zsg-rest") && !el.hasAttribute("data-end"));
         rest ??= makeRestDivider();
         if (rest.nextElementSibling !== firstOther) {
           container.insertBefore(rest, firstOther);
@@ -1023,7 +1119,9 @@
     }
     // Zen's own Clear (above the tabs) goes away when it's on the divider
     // only, as long as there are sections; without any, it stays.
-    container.closest("zen-workspace")?.toggleAttribute("zsg-clear-moved", !!last && opts.clearButton === "divider");
+    container
+      .closest("zen-workspace")
+      ?.toggleAttribute("zsg-clear-moved", !!last && opts.clearButton === "divider" && !inPlace);
 
     for (const el of [...container.children]) {
       if (isOurs(el) && !keep.has(el)) {
@@ -1091,6 +1189,8 @@
         readable: Services.prefs.getBoolPref(PREF_READABLE, true),
         clearButton: choice(PREF_CLEAR_BUTTON, "top", ["top", "divider", "both"]),
         minTabs: Number(choice(PREF_MIN_TABS, "1", Array.from({ length: MAX_MIN_TABS }, (_, i) => String(i + 1)))),
+        autoGroup: modEnabled ? Number(choice(PREF_AUTO_GROUP, "0", AUTO_GROUP_CHOICES)) : 0,
+        position: choice(PREF_POSITION, "top", ["top", "in-place"]),
       };
       applyLook(opts);
       knownSpaces = new Set(getSpaces().map(s => s.id));
@@ -1337,22 +1437,40 @@
         s[i].spaces = [];
       })
     );
+    // A section made automatically (Auto-group other sites) isn't saved, so
+    // its menu offers to keep it instead of editing it.
+    const keepItem = menuItem("Keep as a section", () => {
+      const header = triggerHeader();
+      const site = header?.getAttribute("data-site");
+      if (site) {
+        // Keeps its name, so a folded section stays folded.
+        const label = header.getAttribute("data-label");
+        const name = label === defaultName(site) ? "" : label;
+        const sections = getSections();
+        sections.push({ kind: "site", name, sites: [site], color: null, spaces: [], minTabs: null });
+        setSections(sections);
+      }
+    });
+    const editItems = [];
     popup.addEventListener("popupshowing", e => {
       if (e.target !== popup) {
         return;
       }
       const header = triggerHeader();
+      const auto = !!header?.hasAttribute("zsg-auto");
       closeAllItem.disabled = !!header?.hasAttribute("zsg-empty");
       unloadAllItem.disabled = !!header?.hasAttribute("zsg-none-loaded");
       const section = getSections().find(s => displayName(s) === header?.getAttribute("data-label"));
       const space = headerSpace();
       // With one space (or spaces off) there's nothing to choose.
       const several = getSpaces().length > 1;
-      onlyHereItem.hidden = !several || !space || (section?.spaces.length === 1 && section.spaces[0] === space);
-      everywhereItem.hidden = !section?.spaces.length;
+      onlyHereItem.hidden = auto || !several || !space || (section?.spaces.length === 1 && section.spaces[0] === space);
+      everywhereItem.hidden = auto || !section?.spaces.length;
       spacesSep.hidden = onlyHereItem.hidden && everywhereItem.hidden;
+      editItems.forEach(item => (item.hidden = auto));
+      keepItem.hidden = !auto;
     });
-    popup.append(
+    editItems.push(
       menuItem("Move section up", edit((s, i) => i > 0 && ([s[i - 1], s[i]] = [s[i], s[i - 1]]))),
       menuItem("Move section down", edit((s, i) => i < s.length - 1 && ([s[i + 1], s[i]] = [s[i], s[i + 1]]))),
       menuItem(
@@ -1372,7 +1490,11 @@
           return true;
         })
       ),
-      menuItem("Remove section", edit((s, i) => s.splice(i, 1))),
+      menuItem("Remove section", edit((s, i) => s.splice(i, 1)))
+    );
+    popup.append(
+      keepItem,
+      ...editItems,
       spacesSep,
       onlyHereItem,
       everywhereItem,

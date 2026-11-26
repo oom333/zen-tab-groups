@@ -208,6 +208,72 @@
     ]
   },
   {
+    "property": "zen.sitegroups.auto-group",
+    "label": "Auto-group other sites (a section of their own) from",
+    "type": "dropdown",
+    "defaultValue": "0",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Off",
+        "value": "0"
+      },
+      {
+        "label": "2 tabs",
+        "value": "2"
+      },
+      {
+        "label": "3 tabs",
+        "value": "3"
+      },
+      {
+        "label": "4 tabs",
+        "value": "4"
+      },
+      {
+        "label": "5 tabs",
+        "value": "5"
+      },
+      {
+        "label": "6 tabs",
+        "value": "6"
+      },
+      {
+        "label": "7 tabs",
+        "value": "7"
+      },
+      {
+        "label": "8 tabs",
+        "value": "8"
+      },
+      {
+        "label": "9 tabs",
+        "value": "9"
+      },
+      {
+        "label": "10 tabs",
+        "value": "10"
+      }
+    ]
+  },
+  {
+    "property": "zen.sitegroups.position",
+    "label": "Where sections go",
+    "type": "dropdown",
+    "defaultValue": "top",
+    "placeholder": false,
+    "options": [
+      {
+        "label": "At the top",
+        "value": "top"
+      },
+      {
+        "label": "In place (where their first tab is)",
+        "value": "in-place"
+      }
+    ]
+  },
+  {
     "property": "zen.sitegroups.header-button",
     "label": "Header button",
     "type": "dropdown",
