@@ -19,7 +19,7 @@
   ],
   "ai": "yes",
   "createdAt": "2026-10-13",
-  "updatedAt": "2026-11-26T13:01:54Z",
+  "updatedAt": "2026-11-26T13:45:42Z",
   "scripts": {
     "tab-groups.uc.js": {
       "include": [

@@ -12,12 +12,21 @@ tells Sine an update is available.
 
 - **Auto-group other sites**: a site that isn't in any section gets a
   temporary section of its own once 2 to 10 of its tabs are open (off by
-  default). It goes away when you close them; right-click its header and
-  pick **Keep as a section** to keep it.
-- **Where sections go**: at the top (as before), or **in place**, where
-  a section's first tab is. Its other tabs join it there, so sections no
-  longer pile up at the top and push your other tabs down. A thin line
-  closes each section that other tabs follow.
+  default). It stays until it's down to one tab; right-click its header
+  and pick **Keep as a section** to keep it. Two sites that would share a
+  name (example.com, example.net) are named by their full address.
+- **Where sections go**: at the top (as before), **saved on top** (the
+  sections you made stay on top, automatic ones stay where their tabs
+  are), or **in place** (every section stays where its first tab is, so
+  sections no longer pile up at the top and push your other tabs down). A
+  new tab of a section joins it at its end without pulling it along, and a
+  thin line closes each section that other tabs follow.
+- **Drag a header to move its section.** The other sections and tabs
+  slide out of the way, and the section settles into place on drop.
+  Sections on top change order (like Move up/down); sections in place
+  move to where you drop them. Esc cancels.
+- Folding a section, Move up/down and Keep as a section slide into place
+  instead of jumping.
 - **Parts of a site** ([#11](https://github.com/oom333/zen-tab-groups/issues/11)):
   a site can have a path, like `github.com/you/app`, and gets every page
   under it. The longest match wins, so `github.com/you/app1` and

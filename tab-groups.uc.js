@@ -59,7 +59,8 @@
   const PREF_AUTO_GROUP = "zen.sitegroups.auto-group";
   const AUTO_GROUP_CHOICES = ["0", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
   // Where sections go: all at the top, or where their first tab already is.
-  const PREF_POSITION = "zen.sitegroups.position"; // "top" | "in-place"
+  // "mixed": saved sections at the top, automatic ones where their tabs are.
+  const PREF_POSITION = "zen.sitegroups.position"; // "top" | "mixed" | "in-place"
 
   // A section is either one website ("site") or several under a name you
   // pick ("collection"). A website can only belong to one section. `spaces`
@@ -222,6 +223,20 @@
       .zsg-chevron, .zsg-label, .zsg-count, .zsg-clear, .zsg-rest-clear { display: none !important; }
       .zsg-header { min-height: 12px; }
     }
+
+    /* Dragging a section: it rides above the others, which slide aside. */
+    :root[zsg-dragging], :root[zsg-dragging] * { cursor: grabbing !important; }
+    :root[zsg-dragging] .zen-workspace-normal-tabs-section > * { pointer-events: none; }
+    [zsg-dragged] { position: relative; z-index: 3; }
+    :root { --zsg-drag-bg: var(--zen-colors-tertiary, light-dark(#fff, #2b2a33)); }
+    .zsg-header[zsg-dragged],
+    tab[zsg-dragged] > .tab-stack > .tab-background,
+    [zsg-split][zsg-dragged] tab > .tab-stack > .tab-background {
+      background: var(--zsg-drag-bg) !important;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    tab[zsg-dragged]::before { display: none; }
+    :root[zsg-dragging] .zsg-header[zsg-dragged] .zsg-clear { display: none; }
 
     tab[zsg-collapsed]:not([selected], [multiselected]) { display: none !important; }
     [zsg-split][zsg-collapsed]:not(:has(tab[selected], tab[multiselected])) { display: none !important; }
@@ -775,15 +790,20 @@
     for (const type of ["mousedown", "dblclick", "auxclick"]) {
       header.addEventListener(type, e => e.stopPropagation());
     }
+    header.addEventListener("mousedown", e => pressHeader(header, e));
     header.addEventListener("click", e => {
       e.stopPropagation();
+      if (swallowClick) {
+        swallowClick = false;
+        return;
+      }
       if (e.button !== 0 || header.hasAttribute("zsg-empty")) {
         return;
       }
       if (e.target.classList.contains("zsg-clear")) {
         header.getAttribute("zsg-button") === "unload" ? unloadGroup(header) : closeGroup(header);
       } else {
-        toggleCollapsed(header.getAttribute("data-label"));
+        animated(header.parentElement, () => toggleCollapsed(header.getAttribute("data-label")));
       }
     });
     return header;
@@ -887,6 +907,10 @@
 
   // Temporary sections for sites that aren't in a section but have at least
   // `min` tabs open in this space, in the order their first tab comes.
+  // Automatic sections formed last time, by space: they stay until they're
+  // down to one tab, so closing a tab or two doesn't break one up.
+  const autoFormed = new Map();
+
   function autoSections(content, sections, spaceId, min) {
     const counts = new Map();
     for (const el of content) {
@@ -899,14 +923,23 @@
         }
       }
     }
-    // A name that's taken (example.net next to an "Example" section) becomes
-    // the full address instead.
+    // A name that two sites would share (example.com and example.net), or
+    // that a section already has, becomes the full address for all of them,
+    // so names don't change with which tab comes first.
     const names = new Set(sections.map(displayName));
+    const before = autoFormed.get(spaceId) ?? new Set();
+    const formed = [...counts].filter(([site, n]) => n >= (before.has(site) ? 2 : min)).map(([site]) => site);
+    autoFormed.set(spaceId, new Set(formed));
+    const shared = new Map();
+    for (const site of formed) {
+      shared.set(defaultName(site), (shared.get(defaultName(site)) ?? 0) + 1);
+    }
     const autos = [];
-    for (const [site, n] of counts) {
-      const name = names.has(defaultName(site)) ? site : "";
+    for (const site of formed) {
+      const short = defaultName(site);
+      const name = names.has(short) || shared.get(short) > 1 ? site : "";
       const section = { kind: "site", name, sites: [site], color: null, spaces: [], minTabs: 1, auto: true };
-      if (n >= min && !names.has(displayName(section))) {
+      if (!names.has(displayName(section))) {
         names.add(displayName(section));
         autos.push(section);
       }
@@ -914,14 +947,22 @@
     return autos;
   }
 
+  // Each floating section's anchor tab, by space and section name.
+  const anchors = new Map();
+
   // Lays out one space's tabs. Returns the tabs it put in a section.
   function layoutSection(container, sections, opts) {
     const spaceId = container.getAttribute("zen-workspace-id");
     const content = [...container.children].filter(isContent);
     if (opts.autoGroup) {
       sections = sections.concat(autoSections(content, sections, spaceId, opts.autoGroup));
+    } else {
+      autoFormed.delete(spaceId);
     }
-    const inPlace = opts.position === "in-place";
+    // A floating section stays where its first tab is; the others go on top.
+    // "mixed" floats only the automatic ones (saved sections stay on top).
+    const floats = si => opts.position === "in-place" || (opts.position === "mixed" && !!sections[si].auto);
+    const anchorKey = si => `${spaceId}|${sections[si].auto ? sections[si].sites[0] : displayName(sections[si])}`;
     // Each entry is a tab, or a split view that moves as one (it joins the
     // section of its first tab that has one).
     let grouped = [];
@@ -957,14 +998,37 @@
       split ? ungroupSplit(el) : ungroup(el);
       return false;
     });
-    // Section order at the top; in place, the order their first tabs come in.
-    // (Sorting is stable, so tabs keep their order within a section.)
-    if (inPlace) {
-      const firstAt = new Map();
-      grouped.forEach((g, i) => firstAt.has(g.si) || firstAt.set(g.si, i));
-      grouped.sort((a, b) => firstAt.get(a.si) - firstAt.get(b.si));
-    } else {
-      grouped.sort((a, b) => a.si - b.si);
+    // Sections on top come first, in section order. Floating ones follow in
+    // the order they come in the list, each where its anchor is (its first
+    // tab last time): a new tab opened above a section joins it at the end
+    // instead of pulling the whole section up. Sorting is stable, so tabs
+    // keep their order within a section.
+    const firstAt = new Map();
+    const anchorAt = new Map();
+    grouped.forEach((g, i) => {
+      firstAt.has(g.si) || firstAt.set(g.si, i);
+      if (floats(g.si) && g.tabs.includes(anchors.get(anchorKey(g.si)))) {
+        anchorAt.set(g.si, i);
+      }
+    });
+    const sortKey = (g, i) => {
+      if (!floats(g.si)) {
+        return [0, g.si, 0];
+      }
+      const at = anchorAt.get(g.si) ?? firstAt.get(g.si);
+      return [1, at, i < at ? 1 : 0];
+    };
+    const byKey = (a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2];
+    grouped = grouped
+      .map((g, i) => ({ g, k: sortKey(g, i) }))
+      .sort(byKey)
+      .map(({ g }) => g);
+    const anchored = new Set();
+    for (const g of grouped) {
+      if (floats(g.si) && !anchored.has(g.si)) {
+        anchored.add(g.si);
+        anchors.set(anchorKey(g.si), g.tabs[0]);
+      }
     }
     // Each section's color, and text colors that read on its backgrounds.
     const text = parseColor(getComputedStyle(container).color);
@@ -995,28 +1059,33 @@
       });
     });
 
-    // 1. Move grouped tabs to the top, in section order. A split view moves
+    // 1. Move the sections on top to the top, in section order, and gather
+    // each floating section's tabs after its first one. A split view moves
     // as one: Zen moves the whole box when asked to move one of its tabs.
-    // In place, a section's first tab stays put and the rest join it.
     let prev = null;
-    for (const { el, tabs, si } of grouped) {
+    let lastTop = null;
+    for (const g of grouped) {
+      const { el, tabs, si } = g;
       try {
-        if (inPlace) {
+        if (floats(si)) {
           if (prev?.si === si && nextContent(prev.el) !== el) {
             gBrowser.moveTabAfter(tabs[0], prev.tabs.at(-1));
           }
-        } else if (!prev) {
+        } else if (!lastTop) {
           const first = [...container.children].find(isContent);
           if (first && first !== el) {
             gBrowser.moveTabBefore(tabs[0], isSplit(first) ? first.querySelector("tab") : first);
           }
-        } else if (nextContent(prev.el) !== el) {
-          gBrowser.moveTabAfter(tabs[0], prev.tabs.at(-1));
+        } else if (nextContent(lastTop.el) !== el) {
+          gBrowser.moveTabAfter(tabs[0], lastTop.tabs.at(-1));
         }
       } catch (ex) {
         console.error("[Zen Tab Groups] move failed", ex);
       }
-      prev = { el, tabs, si };
+      prev = g;
+      if (!floats(si)) {
+        lastTop = g;
+      }
     }
 
     // 2. A header above each section (also empty ones, if enabled).
@@ -1027,9 +1096,9 @@
       }
     }
     const keep = new Set();
-    let last = null; // last element of the sections area so far
-    const emptyHeaders = []; // in place: these go at the top
-    const ends = []; // in place: each section's last element
+    let last = null; // last element of the sections on top so far
+    const emptyHeaders = []; // all in place: these go at the very top
+    const ends = []; // each floating section's last element
     sections.forEach((section, si) => {
       const members = grouped.filter(g => g.si === si);
       const tabs = members.flatMap(g => g.tabs);
@@ -1042,14 +1111,18 @@
       }
       const header = existing.get(label) ?? makeHeader(label);
       updateHeader(header, section, tabs, opts, lookFor(si));
+      header.toggleAttribute("zsg-float", !!tabs.length && floats(si));
 
       if (tabs.length) {
         if (header.nextElementSibling !== members[0].el) {
           container.insertBefore(header, members[0].el);
         }
-        last = members.at(-1).el;
-        ends.push({ label, el: last });
-      } else if (inPlace) {
+        if (floats(si)) {
+          ends.push({ label, el: members.at(-1).el });
+        } else {
+          last = members.at(-1).el;
+        }
+      } else if (opts.position === "in-place") {
         emptyHeaders.push(header);
       } else if (last) {
         if (last.nextElementSibling !== header) {
@@ -1083,16 +1156,15 @@
       }
     }
 
-    // 3. A plain line between the sections and everything else, with Zen's
-    // Clear on it if picked (then just the button if the line is off). In
-    // place, a line (no button) closes each section that other tabs follow.
-    const clearHere = opts.clearButton !== "top" && !inPlace;
-    if (inPlace && opts.restDivider) {
-      const groupedEls = new Set(grouped.map(g => g.el));
+    // 3. A plain line between the sections on top and everything else, with
+    // Zen's Clear on it if picked (then just the button if the line is off),
+    // and a line (no button) closing each floating section that tabs follow.
+    const groupedEls = new Set(grouped.map(g => g.el));
+    if (opts.restDivider) {
       for (const { label, el } of ends) {
         const next = nextContent(el);
-        if (!next || groupedEls.has(next)) {
-          continue; // the end of the list, or the next section's header
+        if (!next || groupedEls.has(next) || opts.collapsed.has(label)) {
+          continue; // the end of the list, the next section's header, or folded
         }
         const end = [...container.children].find(e => e.getAttribute("data-end") === label) ?? makeRestDivider();
         end.setAttribute("data-end", label);
@@ -1104,13 +1176,18 @@
         keep.add(end);
       }
     }
-    if (!inPlace && last && (opts.restDivider || clearHere)) {
-      const firstOther = nextContent(last);
-      if (firstOther) {
+    const clearHere = opts.clearButton !== "top";
+    if (last && (opts.restDivider || clearHere)) {
+      let ref = nextContent(last);
+      // A floating section right below: the line goes above its header.
+      if (ref && groupedEls.has(ref) && ref.previousElementSibling?.classList.contains("zsg-header")) {
+        ref = ref.previousElementSibling;
+      }
+      if (ref) {
         let rest = [...container.children].find(el => el.classList.contains("zsg-rest") && !el.hasAttribute("data-end"));
         rest ??= makeRestDivider();
-        if (rest.nextElementSibling !== firstOther) {
-          container.insertBefore(rest, firstOther);
+        if (rest.nextElementSibling !== ref) {
+          container.insertBefore(rest, ref);
         }
         rest.toggleAttribute("zsg-no-line", !opts.restDivider);
         rest.toggleAttribute("zsg-clear", clearHere);
@@ -1118,10 +1195,8 @@
       }
     }
     // Zen's own Clear (above the tabs) goes away when it's on the divider
-    // only, as long as there are sections; without any, it stays.
-    container
-      .closest("zen-workspace")
-      ?.toggleAttribute("zsg-clear-moved", !!last && opts.clearButton === "divider" && !inPlace);
+    // only, as long as there are sections on top; without any, it stays.
+    container.closest("zen-workspace")?.toggleAttribute("zsg-clear-moved", !!last && opts.clearButton === "divider");
 
     for (const el of [...container.children]) {
       if (isOurs(el) && !keep.has(el)) {
@@ -1160,8 +1235,8 @@
 
   function run() {
     frame = null;
-    // Don't fight the user mid-drag.
-    if (gBrowser.tabContainer.hasAttribute("movingtab")) {
+    // Don't fight the user mid-drag (a tab, or one of our sections).
+    if (gBrowser.tabContainer.hasAttribute("movingtab") || drag) {
       clearTimeout(retry);
       retry = setTimeout(schedule, 300);
       return;
@@ -1190,7 +1265,7 @@
         clearButton: choice(PREF_CLEAR_BUTTON, "top", ["top", "divider", "both"]),
         minTabs: Number(choice(PREF_MIN_TABS, "1", Array.from({ length: MAX_MIN_TABS }, (_, i) => String(i + 1)))),
         autoGroup: modEnabled ? Number(choice(PREF_AUTO_GROUP, "0", AUTO_GROUP_CHOICES)) : 0,
-        position: choice(PREF_POSITION, "top", ["top", "in-place"]),
+        position: choice(PREF_POSITION, "top", ["top", "mixed", "in-place"]),
       };
       applyLook(opts);
       knownSpaces = new Set(getSpaces().map(s => s.id));
@@ -1213,6 +1288,373 @@
     } catch (ex) {
       console.error("[Zen Tab Groups]", ex);
     }
+  }
+
+  /* ---------- moving sections by dragging their header ---------- */
+
+  const EASE = "cubic-bezier(0.2, 0, 0, 1)";
+  const SLIDE_MS = 160;
+  const SETTLE_MS = 200;
+
+  let drag = null; // the drag going on, if any
+  let pressed = null; // a header pressed but not dragged far enough yet
+  let swallowClick = false; // the click that ends a drag doesn't fold it
+
+  // Lay out right away (in this frame), for changes the user made.
+  function layoutNow() {
+    if (frame !== null) {
+      cancelAnimationFrame(frame);
+      frame = null;
+    }
+    run();
+  }
+
+  // The things in a space's tab list a section can be dragged past, top to
+  // bottom: each section (header, tabs and end line) and each other tab,
+  // split view or folder. Only ones of the same `kind` trade places: saved
+  // sections on top ("top"), automatic ones on top ("auto"), or floating
+  // sections and the tabs around them ("float").
+  function dragUnits(container) {
+    const units = [];
+    const kids = [...container.children];
+    for (let i = 0; i < kids.length; i++) {
+      const el = kids[i];
+      if (el.classList.contains("zsg-header")) {
+        const label = el.getAttribute("data-label");
+        const kind = el.hasAttribute("zsg-float") ? "float" : el.hasAttribute("zsg-auto") ? "auto" : "top";
+        const unit = { header: el, els: [el], content: [], kind };
+        while (i + 1 < kids.length) {
+          const next = kids[i + 1];
+          if ((next.localName === "tab" && next.getAttribute("zsg-group") === label) || next.getAttribute("zsg-split") === label) {
+            unit.els.push(next);
+            unit.content.push(next);
+          } else if (next.getAttribute("data-end") === label) {
+            unit.els.push(next);
+          } else {
+            break;
+          }
+          i++;
+        }
+        units.push(unit);
+      } else if (isContent(el) && !el.hasAttribute("zsg-group") && !el.hasAttribute("zsg-split")) {
+        units.push({ header: null, els: [el], content: [el], kind: "float" });
+      }
+    }
+    return units;
+  }
+
+  // Where a unit is on screen (its visible parts), or null if hidden.
+  function unitBox(unit) {
+    const rects = unit.els.map(el => el.getBoundingClientRect()).filter(r => r.height > 0);
+    return rects.length ? { top: rects[0].top, bottom: rects.at(-1).bottom } : null;
+  }
+
+  const scrollerOf = container => container.closest("arrowscrollbox")?.scrollbox ?? null;
+
+  function startDrag(header, startY) {
+    const container = header.parentElement;
+    const all = dragUnits(container);
+    const unit = all.find(u => u.header === header);
+    if (!unit || header.hasAttribute("zsg-empty") && unit.kind === "float") {
+      return false;
+    }
+    const items = all.filter(u => u.kind === unit.kind);
+    for (const u of items) {
+      u.box = unitBox(u);
+    }
+    const shown = items.filter(u => u.box);
+    const index = shown.indexOf(unit);
+    if (index < 0 || shown.length < 2) {
+      return false;
+    }
+    // Each one's slot: from its top to the next one's top, so gaps stay.
+    const gap = Math.max(0, shown[1].box.top - shown[0].box.bottom);
+    shown.forEach((u, i) => {
+      u.size = i + 1 < shown.length ? shown[i + 1].box.top - u.box.top : u.box.bottom - u.box.top + gap;
+    });
+    const scroller = scrollerOf(container);
+    drag = {
+      container,
+      unit,
+      items: shown,
+      index,
+      target: index,
+      startY,
+      y: startY,
+      startScroll: scroller?.scrollTop ?? 0,
+      scroller,
+      minDy: shown[0].box.top - unit.box.top,
+      maxDy: shown.at(-1).box.top + shown.at(-1).size - (unit.box.top + unit.size),
+      raf: null,
+    };
+    for (const u of shown) {
+      for (const el of u.els) {
+        el.style.transition = u === unit ? "none" : `transform ${SLIDE_MS}ms ${EASE}`;
+      }
+    }
+    for (const el of unit.els) {
+      el.setAttribute("zsg-dragged", "");
+    }
+    document.documentElement.setAttribute("zsg-dragging", "");
+    autoScroll();
+    return true;
+  }
+
+  function updateDrag() {
+    const d = drag;
+    const scrolled = (d.scroller?.scrollTop ?? 0) - d.startScroll;
+    const dy = Math.min(Math.max(d.y - d.startY + scrolled, d.minDy), d.maxDy);
+    // Something trades places once the dragged section's leading edge passes
+    // its middle (its top edge going up, its bottom edge going down).
+    const top = d.unit.box.top + dy;
+    const bottom = top + d.unit.size;
+    let target = d.index;
+    d.items.forEach((u, i) => {
+      let shift = 0;
+      if (i < d.index && top < u.box.top + u.size / 2) {
+        shift = d.unit.size;
+        target = Math.min(target, i);
+      } else if (i > d.index && bottom > u.box.top + u.size / 2) {
+        shift = -d.unit.size;
+        target = Math.max(target, i);
+      }
+      if (u !== d.unit) {
+        for (const el of u.els) {
+          el.style.transform = shift ? `translateY(${shift}px)` : "";
+        }
+      }
+    });
+    for (const el of d.unit.els) {
+      el.style.transform = `translateY(${dy}px)`;
+    }
+    d.target = target;
+  }
+
+  // Scrolls the tab list while the pointer is near its top or bottom edge.
+  function autoScroll() {
+    const d = drag;
+    if (!d) {
+      return;
+    }
+    if (d.scroller) {
+      const box = d.scroller.getBoundingClientRect();
+      const edge = 36;
+      const speed =
+        d.y < box.top + edge ? -Math.ceil((box.top + edge - d.y) / 4) : d.y > box.bottom - edge ? Math.ceil((d.y - box.bottom + edge) / 4) : 0;
+      if (speed) {
+        const before = d.scroller.scrollTop;
+        d.scroller.scrollTop += speed;
+        if (d.scroller.scrollTop !== before) {
+          updateDrag();
+        }
+      }
+    }
+    d.raf = requestAnimationFrame(autoScroll);
+  }
+
+  // Where each of a space's elements is on screen now.
+  function snapshot(container) {
+    const tops = new Map();
+    for (const el of container.children) {
+      const r = el.getBoundingClientRect();
+      if (r.height > 0) {
+        tops.set(el, r.top);
+      }
+    }
+    return tops;
+  }
+
+  // Slides everything from where it was (`before`) to where it is now, so a
+  // change never jumps. New ones (an end line, unfolded tabs) fade in.
+  function settle(container, before) {
+    const moved = [];
+    for (const el of container.children) {
+      const r = el.getBoundingClientRect();
+      if (!r.height) {
+        continue;
+      }
+      el.style.transition = "none";
+      if (before.has(el)) {
+        const delta = before.get(el) - r.top;
+        if (Math.abs(delta) < 0.5) {
+          el.style.transition = "";
+          continue;
+        }
+        el.style.transform = `translateY(${delta}px)`;
+      } else {
+        el.style.opacity = "0"; // new, or shown again (unfolded)
+      }
+      moved.push(el);
+    }
+    if (!moved.length) {
+      return;
+    }
+    container.getBoundingClientRect(); // apply the start positions first
+    for (const el of moved) {
+      el.style.transition = `transform ${SETTLE_MS}ms ${EASE}, opacity ${SETTLE_MS}ms ${EASE}`;
+      el.style.transform = "";
+      el.style.opacity = "";
+    }
+    setTimeout(() => {
+      for (const el of moved) {
+        if (!drag?.unit.els.includes(el)) {
+          el.style.transition = "";
+        }
+      }
+    }, SETTLE_MS + 50);
+  }
+
+  // Runs a change to the sections (a pref or tab moves), lays out at once,
+  // and slides everything in that space into its new place.
+  function animated(container, change) {
+    if (!container?.isConnected) {
+      change();
+      return;
+    }
+    const before = snapshot(container);
+    change();
+    layoutNow();
+    settle(container, before);
+  }
+
+  const firstTab = el => (isSplit(el) ? el.querySelector("tab") : el);
+  const lastTab = el => (isSplit(el) ? [...el.querySelectorAll("tab")].at(-1) : el);
+
+  // Puts the dragged section where it was dropped.
+  function applyDrop(d) {
+    const order = [...d.items];
+    order.splice(d.target, 0, ...order.splice(d.index, 1));
+    if (d.unit.kind === "top") {
+      // Saved sections: the new order goes into the list of sections. Ones
+      // not shown here (other spaces, no tabs) keep their places.
+      const sections = getSections();
+      const picks = order
+        .map(u => sections.findIndex(s => displayName(s) === u.header.getAttribute("data-label")))
+        .filter(i => i >= 0);
+      const slots = [...picks].sort((a, b) => a - b);
+      const result = [...sections];
+      slots.forEach((slot, k) => (result[slot] = sections[picks[k]]));
+      setSections(result);
+      return;
+    }
+    // The others: their tabs move next to the ones they were dropped by.
+    const before = order[d.target - 1];
+    const after = order[d.target + 1];
+    if (before) {
+      let anchor = before.content.at(-1);
+      for (const el of d.unit.content) {
+        gBrowser.moveTabAfter(firstTab(el), isSplit(anchor) ? lastTab(anchor) : anchor);
+        anchor = el;
+      }
+    } else if (after) {
+      const target = after.content[0];
+      for (const el of d.unit.content) {
+        gBrowser.moveTabBefore(firstTab(el), isSplit(target) ? firstTab(target) : target);
+      }
+    }
+  }
+
+  function endDrag(commit) {
+    const d = drag;
+    if (!d) {
+      return;
+    }
+    cancelAnimationFrame(d.raf);
+    const els = d.items.flatMap(u => u.els);
+    const cleanUp = () => {
+      for (const el of els) {
+        el.removeAttribute("zsg-dragged");
+      }
+      document.documentElement.removeAttribute("zsg-dragging");
+    };
+    if (!commit || d.target === d.index) {
+      // Glide back.
+      for (const el of els) {
+        el.style.transition = `transform ${SETTLE_MS}ms ${EASE}`;
+        el.style.transform = "";
+      }
+      drag = null;
+      cleanUp();
+      setTimeout(() => els.forEach(el => el.isConnected && !drag && (el.style.transition = "")), SETTLE_MS + 50);
+      schedule();
+      return;
+    }
+    const before = snapshot(d.container);
+    for (const el of els) {
+      el.style.transition = "none";
+      el.style.transform = "";
+    }
+    drag = null;
+    cleanUp();
+    try {
+      applyDrop(d);
+    } catch (ex) {
+      console.error("[Zen Tab Groups] drop failed", ex);
+    }
+    layoutNow();
+    settle(d.container, before);
+  }
+
+  function onDragMove(e) {
+    if (pressed && !drag) {
+      if (Math.abs(e.clientY - pressed.y) < 5) {
+        return;
+      }
+      const header = pressed.header;
+      const y = pressed.y;
+      pressed = null;
+      if (!startDrag(header, y)) {
+        stopListening();
+        return;
+      }
+    }
+    if (drag) {
+      drag.y = e.clientY;
+      updateDrag();
+    }
+  }
+
+  function onDragUp() {
+    stopListening();
+    pressed = null;
+    if (drag) {
+      swallowClick = true;
+      setTimeout(() => (swallowClick = false), 0);
+      endDrag(true);
+    }
+  }
+
+  function onDragKey(e) {
+    if (e.key === "Escape" && drag) {
+      e.preventDefault();
+      e.stopPropagation();
+      stopListening();
+      endDrag(false);
+    }
+  }
+
+  function onDragCancel() {
+    stopListening();
+    pressed = null;
+    endDrag(false);
+  }
+
+  function stopListening() {
+    window.removeEventListener("mousemove", onDragMove, true);
+    window.removeEventListener("mouseup", onDragUp, true);
+    window.removeEventListener("keydown", onDragKey, true);
+    window.removeEventListener("blur", onDragCancel);
+  }
+
+  function pressHeader(header, e) {
+    if (e.button !== 0 || drag || e.target.classList.contains("zsg-clear") || gBrowser.tabContainer.hasAttribute("movingtab")) {
+      return;
+    }
+    pressed = { header, y: e.clientY };
+    window.addEventListener("mousemove", onDragMove, true);
+    window.addEventListener("mouseup", onDragUp, true);
+    window.addEventListener("keydown", onDragKey, true);
+    window.addEventListener("blur", onDragCancel);
   }
 
   /* ---------- actions ---------- */
@@ -1411,11 +1853,12 @@
       }
     });
     const edit = fn => () => {
-      const label = triggerHeader()?.getAttribute("data-label");
+      const header = triggerHeader();
+      const label = header?.getAttribute("data-label");
       const sections = getSections();
       const i = sections.findIndex(s => displayName(s) === label);
       if (i >= 0 && fn(sections, i) !== false) {
-        setSections(sections);
+        animated(header.parentElement, () => setSections(sections));
       }
     };
     // The space whose list the header is in.
@@ -1448,10 +1891,11 @@
         const name = label === defaultName(site) ? "" : label;
         const sections = getSections();
         sections.push({ kind: "site", name, sites: [site], color: null, spaces: [], minTabs: null });
-        setSections(sections);
+        animated(header.parentElement, () => setSections(sections));
       }
     });
     const editItems = [];
+    const moveItems = [];
     popup.addEventListener("popupshowing", e => {
       if (e.target !== popup) {
         return;
@@ -1469,10 +1913,15 @@
       spacesSep.hidden = onlyHereItem.hidden && everywhereItem.hidden;
       editItems.forEach(item => (item.hidden = auto));
       keepItem.hidden = !auto;
+      // A section that stays where its tabs are moves by dragging only.
+      moveItems.forEach(item => (item.hidden ||= !!header?.hasAttribute("zsg-float")));
     });
-    editItems.push(
+    moveItems.push(
       menuItem("Move section up", edit((s, i) => i > 0 && ([s[i - 1], s[i]] = [s[i], s[i - 1]]))),
-      menuItem("Move section down", edit((s, i) => i < s.length - 1 && ([s[i + 1], s[i]] = [s[i], s[i + 1]]))),
+      menuItem("Move section down", edit((s, i) => i < s.length - 1 && ([s[i + 1], s[i]] = [s[i], s[i + 1]])))
+    );
+    editItems.push(
+      ...moveItems,
       menuItem(
         "Rename…",
         edit((s, i) => {

@@ -264,11 +264,15 @@
     "placeholder": false,
     "options": [
       {
-        "label": "At the top",
+        "label": "All at the top",
         "value": "top"
       },
       {
-        "label": "In place (where their first tab is)",
+        "label": "Saved ones on top, automatic ones in place",
+        "value": "mixed"
+      },
+      {
+        "label": "All in place (where their first tab is)",
         "value": "in-place"
       }
     ]

@@ -200,7 +200,7 @@
             <div class="option">
               <span class="option-text">
                 <b>Auto-group other sites</b>
-                <span class="muted">A site that isn't in any section gets a section of its own once this many of its tabs are open. It goes away when you close them. Right-click its header and pick “Keep as a section” to keep it.</span>
+                <span class="muted">A site that isn't in any section gets a section of its own once this many of its tabs are open. It stays until you're down to one tab. Right-click its header and pick “Keep as a section” to keep it for good.</span>
               </span>
               <select class="select" data-pref="zen.sitegroups.auto-group" data-default="0" aria-label="Tabs needed to auto-group a site">
                 <option value="0">Off</option>
@@ -218,10 +218,11 @@
             <div class="option">
               <span class="option-text">
                 <b>Where sections go</b>
-                <span class="muted">At the top, above your other tabs. Or in place: a section stays where its first tab is, and its other tabs join it there, so your other tabs aren't pushed down.</span>
+                <span class="muted">Top puts every section above your other tabs. Saved on top keeps the sections you made there, while automatic ones stay where their tabs are. In place keeps every section where its first tab is, so your other tabs aren't pushed down. Drag a header to move its section.</span>
               </span>
               <div class="segmented" data-pref="zen.sitegroups.position" data-default="top" role="group" aria-label="Where sections go">
                 <button type="button" data-value="top">Top</button>
+                <button type="button" data-value="mixed">Saved on top</button>
                 <button type="button" data-value="in-place">In place</button>
               </div>
             </div>
